@@ -91,7 +91,7 @@ function addImageToDoc(doc){
 
 function getImageUrl(cardNameOrId) {
 	return () => {
-		return request('https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(cardNameOrId))
+		return request('https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(cardNameOrId))
 			.catch((function(name) {
 				return (error) => request('https://api.scryfall.com/cards/' + encodeURIComponent(name));
 			})(cardNameOrId))
