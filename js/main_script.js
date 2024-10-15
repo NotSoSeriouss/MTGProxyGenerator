@@ -109,78 +109,109 @@ function getImageUrl(cardNameOrId) {
 				var data = JSON.parse(result);
 				console.log('Requesting result');
 				console.log(data);
-				// Check if data contains card image information
+
+				// Check if data contains single-face card image
 				if (data.image_uris) {
-					return requestArrayBuffer(data.image_uris.png); // Assuming 'normal' size image
+					return [requestArrayBuffer(data.image_uris.png)];  // Return as an array for consistency
 				} else if (data.card_faces && data.card_faces.length > 0) {
-					// Handle double-sided cards
-					return requestArrayBuffer(data.card_faces[0].image_uris.png);
+					// Handle multi-sided cards by returning images for all faces
+					return Promise.all(
+						data.card_faces.map(face => requestArrayBuffer(face.image_uris.png))
+					);
 				} else {
 					throw new Error("Image URL not found");
 				}
-			}).then(function(image) {
-				imagesDownloaded++;
+			}).then(function(images) {
+				imagesDownloaded += 1;  // Increment for all faces downloaded
 				updateProgressBar();
-				return image;
+				return images;  // Return all images
 			});
 	};
 }
 
-function generateProxies(){
+function generateProxies() {
 	imagePos = 0;
 	failedLines = [];
 	imagesDownloaded = 0;
 
-	// create a document the same way as above
-	const doc = new PDFDocument({size: document.getElementById("paper_size").value});
+	// Create a PDF document
+	const doc = new PDFDocument({ size: document.getElementById("paper_size").value });
 
-	// pipe the document to a blob
+	// Pipe the document to a blob
 	const stream = doc.pipe(blobStream());
 	stream.on('finish', function() {
-		/*var iframe = document.querySelector('iframe');*/
-			// get a blob you can do whatever you like with
 		const blob = stream.toBlob('application/pdf');
-		saveAs(blob, "download.pdf");	 
+		saveAs(blob, "download.pdf");
 	});
-
 
 	var lines = document.getElementById("decklist_input").value.split('\n');
 	totalImages = lines.length;
 	var overallProcess = Promise.resolve();
 
-	for(var i = 0; i < lines.length; i++){
-		if(/^\/\//.test(lines[i]) || /^#/.test(lines[i]) || /^!/.test(lines[i])){
+	for (var i = 0; i < lines.length; i++) {
+		if (/^\/\//.test(lines[i]) || /^#/.test(lines[i]) || /^!/.test(lines[i])) {
 			console.log("skipping comment " + lines[i]);
 			continue;
 		}
 
-
-		//var regex_id_nr = 
-			var regex_name = /^(?:([1-9][0-9]*)(?: ))?(.+)/;
+		var regex_name = /^(?:([1-9][0-9]*)(?: ))?(.+)/;
 		var regex_result = regex_name.exec(lines[i]);
-		if(regex_result){
+		if (regex_result) {
 			var number = regex_result[1] === undefined ? 1 : parseInt(regex_result[1]);
 			console.log(lines[i]);
 			console.log(regex_result);
 			console.log("number: " + number);
 			overallProcess = overallProcess.then(getImageUrl(regex_result[2]))
 				.then(
-					function(innerNumber){return (img)=>Promise.all([...Array(innerNumber).keys()].map(i => addImageToDoc(doc)(img)));}(number),
-					function(line){return () => failedLines.push(line);} (regex_result[2])
+					function(innerNumber) { 
+						return (images) => Promise.all(
+							// Flatten and process all images (multiple faces)
+							images.flatMap(img => [...Array(innerNumber).keys()].map(i => addImageToDoc(doc)(img)))
+						); 
+					}(number),
+					function(line) { 
+						return () => failedLines.push(`${number} ${line}`); 
+					}(regex_result[2], number)
 				);
-
 		}
 	}
 
 	overallProcess = overallProcess
-		.then(()=>{
-			if(failedLines.length != 0){
-				var error_message = "could not process following lines: \n";
-				failedLines.forEach(line => error_message = error_message + "\n" + line);
-				alert(error_message);
-			}})
-		.then(()=>doc.end())
+		.then(() => tryFailed(doc))
+		.then(() => doc.end())
 		.catch(console.log.bind(console));
+}
+
+function tryFailed(doc) {
+	if (failedLines.length > 0) {
+		var error_message = "Could not process the following lines: \n";
+		failedLines.forEach(line => error_message = error_message + "\n" + line);
+		error_message = error_message + "\nDo you want to retry them?";
+
+		// Prompt user if they want to retry failed lines
+		if (confirm(error_message)) {
+			let retryProcess = Promise.resolve();
+			let retryFailedLines = [];
+
+			for (let i = 0; i < failedLines.length; i++) {
+				retryProcess = retryProcess
+					.then(getImageUrl(failedLines[i]))
+					.then(
+						(img) => addImageToDoc(doc)(img),
+						() => retryFailedLines.push(failedLines[i])
+					);
+			}
+
+			return retryProcess
+				.then(() => {
+					// If retryFailedLines is still not empty, recursively call tryFailed
+					if (retryFailedLines.length > 0) {
+						failedLines = retryFailedLines; // Update failed lines with the ones that failed again
+						return tryFailed(doc); // Recursively call if there are still failed lines
+					}
+				});
+		}
+	}
 }
 
 function dragOverHandler(e) {
