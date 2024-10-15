@@ -1,78 +1,82 @@
 <!DOCTYPE html>
 <html>
-  <head>
-      <meta charset="utf-8" />
-      <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700&display=swap" rel="stylesheet">
-      <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700&display=swap" rel="stylesheet">
-      <link href="style.css" type="text/css" rel="stylesheet">
-      <title>MTGProxys⎪The Proxy Generator</title>
-  </head>
+	<head>
+		<meta charset="utf-8" />
+		<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700&display=swap" rel="stylesheet">
+		<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700&display=swap" rel="stylesheet">
+		<link href="style.css" type="text/css" rel="stylesheet">
+		<title>MTGProxys⎪The Proxy Generator</title>
+	</head>
 
-  <body>
+	<body>
 
-    <header>
-      <h1 class="title">MTGProxys</h1>  
-    </header>
+		<header>
+			<h1 class="title">MTGProxys</h1>  
+		</header>
 
-    <div class="wrapper">
-      <div class="content">
+		<div class="wrapper">
+			<div class="content">
 
-        <div class="mobile">
-          <a id="mobilehowto" href="#howto">Instructions</a>
-        </div>
+				<div class="mobile">
+					<a id="mobilehowto" href="#howto">Instructions</a>
+				</div>
 
-        <div class="decklist">
-          <h3>Enter your Decklist here</h3>
-          <textarea id="decklist_input" ondrop="dropHandler(event);" ondragover="dragOverHandler(event);" rows="16" cols="40"></textarea>
-        </div>
+				<div class="decklist">
+					<h3>Enter your Decklist here</h3>
+					<textarea id="decklist_input" ondrop="dropHandler(event);" ondragover="dragOverHandler(event);" rows="16" cols="40"></textarea>
+				</div>
 
-        <div class="settings">
-          <h3>Settings</h3>
-          <div class="grid">
-            <input id="card_scale" type=number step=0.01 min=0 max=3 value="1.0"/> 
-            <span class="scale" tooltip1="Adjust the card size. A factor of 0.95 means that the cards will be 95% of their original size. Most printers will scale down the PDF by another 3%">Card size scale</span>
-            
-            <input id="margin_cards" type=number step=1 min=0 max=100 value="0"/>
-            <span class="marginc" tooltip2="Set the amount of space between the cards in the PDF. Margin of 0 means there will be no space in between cards.">Margin between cards</span>
-            
-            <input id="margin_document" type=number step=1 min=0 max=1000 value="20"/>
-            <span class="margind" tooltip3="Set the amount of space between the first card and the border of the PDF. This is needed because most printes can't print from edge to edge.">Margin between first card and document border</span>
-			
-			<input id="paper_size" type=text value="A4"/>
-            <span class="papers" tooltip4="Type the ID of your desired paper size, e.g. A4 or leave empty for letter-size">Paper size for output pdf, use identifiers from <a href="https://pdfkit.org/docs/paper_sizes.html">pdfkit paper_sizes</a> </span>
-          </div>
-        </div>
+				<div class="settings">
+					<h3>Settings</h3>
+					<div class="grid">
+						<input id="card_scale" type=number step=0.01 min=0 max=3 value="1.0"/> 
+						<span class="scale" tooltip1="Adjust the card size. A factor of 0.95 means that the cards will be 95% of their original size. Most printers will scale down the PDF by another 3%">Card size scale</span>
 
-        <div class="btn">
-          <button type="button" onclick="generateProxies()">Generate Proxies <br> Download PDF</button>
-        </div>
+						<input id="margin_cards" type=number step=1 min=0 max=100 value="8"/>
+						<span class="marginc" tooltip2="Set the amount of space between the cards in the PDF. Margin of 0 means there will be no space in between cards.">Margin between cards</span>
 
-        <div class="howto" id="howto">
-          <h3>Instructions</h3>
-          <p>
-            Enter card name<br>
-            Black Lotus <br>
-            Set the quantity before the name/ID: <br>
-            9 Black Lotus <br>
-            3 89631139 <br> <br>
-            This might take a few seconds.</p>
-        </div>
-      </div>
-    </div>
-    
-    <footer>
-      Data provided by  <a href="https://scryfall.com">Scryfall</a> </br>
-    </footer>
+						<input id="margin_document" type=number step=1 min=0 max=1000 value="10"/>
+						<span class="margind" tooltip3="Set the amount of space between the first card and the border of the PDF. This is needed because most printes can't print from edge to edge.">Margin between first card and document border</span>
 
-    <!--iframe width="600" height="775"></iframe-->
-    <script src="../js/FileSaver.js"></script>
-    <script src="../js/blob-stream.js"></script>
-    <script src="../js/pdfkit.standalone.js">
-    </script>
-    <script src="../js/main_script.js">
-    </script>
+						<input id="paper_size" type=text value="A4"/>
+						<span class="papers" tooltip4="Type the ID of your desired paper size, e.g. A4 or leave empty for letter-size">Paper size for output pdf, use identifiers from <a href="https://pdfkit.org/docs/paper_sizes.html">pdfkit paper_sizes</a> </span>
+					</div>
+				</div>
 
-  </body>
+				<div class="btn">
+					<div class="progressbar">
+						<div class="progress">
+							<p class="percent"></p>
+						</div>
+					</div>
+					<button type="button" onclick="generateProxies()">Generate Proxies <br> Download PDF</button>
+				</div>
+
+				<div class="howto" id="howto">
+					<h3>Instructions</h3>
+					<p>
+					Enter card name<br>
+					Black Lotus <br>
+					Set the quantity before the name/ID: <br>
+					9 Black Lotus <br>
+					This might take a few seconds.</p>
+				</div>
+			</div>
+		</div>
+
+		<footer>
+			Data provided by  <a href="https://scryfall.com">Scryfall</a> </br>
+		</footer>
+
+		<!--iframe width="600" height="775"></iframe-->
+		<script src="../js/FileSaver.js"></script>
+		<script src="../js/blob-stream.js"></script>
+		<script src="../js/pdfkit.standalone.js">
+		</script>
+		<script src="../js/main_script.js">
+		</script>
+
+	</body>
 </html>
 
 

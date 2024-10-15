@@ -473,3 +473,27 @@ button:active {
     transition: .7s;
   }
 }
+
+.progressbar {
+	border: 4px solid var(--orange);
+	border-radius: 8px;
+	background-color: #4588d1;
+
+	& .progress {
+		width: 0%;
+		background-color: #bad5f2;
+		height: 20px;
+		transition: width 0.5s linear;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+
+		& .percent {
+			color: black;
+			font-size: 1rem;
+			font-weight: bold;
+			position: absolute;
+			transition: width 1s ease;
+		}
+	}
+}
