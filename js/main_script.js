@@ -3,7 +3,7 @@ function request(url) {
 	console.log(url);
 	return new Promise(function (resolve, reject) {
 		const xhr = new XMLHttpRequest();
-		xhr.timeout = 5000;
+		xhr.timeout = 10000;
 		xhr.onreadystatechange = function(e) {
 			if (xhr.readyState === 4) {
 				if (xhr.status === 200) {
