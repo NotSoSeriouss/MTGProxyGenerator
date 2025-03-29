@@ -57,38 +57,46 @@ const pdfHeight= 11.69 * pdfPointsPerInch;
 
 
 
-function addImageToDoc(doc){
-	return (img_url)=>{			
-		console.log('image: ');
-		console.log(img_url);
-		var img = doc.openImage(img_url);
-		var scaledWidth = cardWidth * document.getElementById("card_scale").value;
-		console.log("scaledcardwith " + scaledWidth);
-		var scaledHeight = scaledWidth / img.width * img.height;
-		var scaledWidthPlusMargin = scaledWidth + Number(document.getElementById("margin_cards").value);
-		console.log("cardwithplusmargin " + scaledWidthPlusMargin);
-		var scaledHeightPlusMargin = scaledHeight + Number(document.getElementById("margin_cards").value);
-		console.log(scaledWidthPlusMargin);
-		var imgCountHorizontal = Math.floor((pdfWidth - 2*document.getElementById("margin_document").value) / scaledWidthPlusMargin);
-		var imgCountVertical = Math.floor((pdfHeight-2*document.getElementById("margin_document").value) / scaledHeightPlusMargin);
-
-		if(imagePos >= imgCountHorizontal * imgCountVertical)
-		{
-			doc.addPage();
-			imagePos = 0;
-		}
-
-		var xPos = imagePos%imgCountHorizontal;
-		var yPos = Math.floor(imagePos/imgCountHorizontal);
-
-
-		doc.image(img, Number(document.getElementById("margin_document").value) + xPos * scaledWidthPlusMargin, 
-			Number(document.getElementById("margin_document").value) + yPos * scaledHeightPlusMargin, {width: scaledWidth});
-
-		imagePos = (imagePos + 1);			
-	};
+function addImageToDoc(doc) {
+    return (img_url) => {
+        console.log('image: ');
+        console.log(img_url);
+        
+        // Create an image element and set its source to the image URL
+        var img = new Image();
+        img.src = img_url;
+        
+        img.onload = function() {
+            var scaledWidth = cardWidth * document.getElementById("card_scale").value;
+            console.log("scaledcardwith " + scaledWidth);
+            var scaledHeight = scaledWidth / img.width * img.height;
+            var scaledWidthPlusMargin = scaledWidth + Number(document.getElementById("margin_cards").value);
+            console.log("cardwithplusmargin " + scaledWidthPlusMargin);
+            var scaledHeightPlusMargin = scaledHeight + Number(document.getElementById("margin_cards").value);
+            console.log(scaledWidthPlusMargin);
+            var imgCountHorizontal = Math.floor((pdfWidth - 2 * document.getElementById("margin_document").value) / scaledWidthPlusMargin);
+            var imgCountVertical = Math.floor((pdfHeight - 2 * document.getElementById("margin_document").value) / scaledHeightPlusMargin);
+            
+            if (imagePos >= imgCountHorizontal * imgCountVertical) {
+                doc.addPage();
+                imagePos = 0;
+            }
+            
+            var xPos = imagePos % imgCountHorizontal;
+            var yPos = Math.floor(imagePos / imgCountHorizontal);
+            
+            // Add the image to the PDF document
+            doc.image(img, Number(document.getElementById("margin_document").value) + xPos * scaledWidthPlusMargin,
+                Number(document.getElementById("margin_document").value) + yPos * scaledHeightPlusMargin, { width: scaledWidth });
+            
+            imagePos = (imagePos + 1);
+        };
+        
+        img.onerror = function() {
+            console.error('Failed to load image:', img_url);
+        };
+    };
 }
-
 var totalImages = 0;
 var imagesDownloaded = 0;
 
