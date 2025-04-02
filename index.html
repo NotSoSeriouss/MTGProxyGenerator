@@ -1,0 +1,83 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { InformationCircleIcon } from '@heroicons/react/24/outline';
+
+const MTGProxyGenerator = () => {
+  const accentColor = 'rgba(56, 189, 248, 1)';
+  const [showInfoDiv, setShowInfoDiv] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleInfoMouseEnter = () => {
+    timeoutRef.current = setTimeout(() => {
+      setShowInfoDiv(true);
+    }, 200);
+  };
+
+  const handleInfoMouseLeave = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    setShowInfoDiv(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-gray-800 flex flex-col items-center p-4 font-sans relative">
+      <h1 className="text-2xl font-semibold text-white mb-4 self-start mt-4">MTG Proxy Generator</h1>
+      <textarea
+        className="w-full max-w-md h-48 p-2 border rounded-md bg-gray-700 text-white resize-both mb-4 min-h-[100px] min-w-[200px] transition-all duration-300 focus:scale-[1.02]"
+        style={{ borderColor: accentColor, borderWidth: '3px' }}
+        placeholder="Enter text here..."
+      />
+      <div className="w-full max-w-md flex items-center mb-4">
+        <div className="bg-gray-700 rounded-full h-2.5 flex-grow mr-2">
+          <div
+            className="h-2.5 rounded-full transition-all duration-300"
+            style={{ width: '0%', backgroundColor: accentColor }}
+            id="progress-bar"
+          />
+        </div>
+        <span className="text-white text-sm" id="progress-percentage">
+          0%
+        </span>
+      </div>
+      <hr className="w-full max-w-md border-gray-700 mb-4" />
+      <div className="w-full max-w-md flex items-center justify-center">
+        <button
+          className="w-full py-2 rounded-md text-white font-semibold hover:bg-opacity-90 transition-colors duration-200 mr-2 relative"
+          style={{ backgroundColor: accentColor }}
+        >
+          Generate Proxies
+        </button>
+        <div
+          className="relative cursor-pointer ml-2"
+          onMouseEnter={handleInfoMouseEnter}
+          onMouseLeave={handleInfoMouseLeave}
+        >
+          <InformationCircleIcon className="h-6 w-6 text-gray-400 hover:text-white" />
+          {showInfoDiv && (
+            <div className="absolute bg-gray-900 text-white text-sm p-2 rounded-md shadow-lg w-64 mt-4" style={{ position: 'absolute', top: '100%', right: '100%', zIndex: 10 }}>
+              <p>
+                Enter card names, one per line. For specific numbers,
+                use "Card Name #". Examples:
+              </p>
+              <ul className="list-disc list-inside">
+                <li>Black Lotus</li>
+                <li>8 Mountain</li>
+                <li>Island 6</li>
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default MTGProxyGenerator;
