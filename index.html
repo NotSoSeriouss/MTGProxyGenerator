@@ -1,83 +1,579 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { InformationCircleIcon } from '@heroicons/react/24/outline';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTG Proxy Generator</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- Theme Variables --- */
+        :root {
+            --bg-primary: #111827; /* Dark Gray-Blue */
+            --bg-secondary: #1f2937; /* Medium Gray-Blue */
+            --bg-tertiary: #374151; /* Lighter Gray-Blue */
+            --text-primary: #f9fafb; /* Almost White */
+            --text-secondary: #d1d5db; /* Light Gray */
+            --text-muted: #9ca3af; /* Medium Gray */
+            --accent-primary: #22d3ee; /* Cyan */
+            --accent-primary-dark: #0e7490; /* Darker Cyan */
+            --accent-primary-light: #67e8f9; /* Lighter Cyan */
+            --border-color: #4b5563; /* Gray border */
+            --error-bg: #450a0a; /* Dark Red */
+            --error-border: #b91c1c; /* Medium Red */
+            --error-text: #fca5a5; /* Light Red */
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --border-radius-sm: 0.25rem; /* 4px */
+            --border-radius-md: 0.375rem; /* 6px */
+            --border-radius-lg: 0.5rem; /* 8px */
+            --border-radius-full: 9999px;
+        }
 
-const MTGProxyGenerator = () => {
-  const accentColor = 'rgba(56, 189, 248, 1)';
-  const [showInfoDiv, setShowInfoDiv] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+        /* Basic reset and font */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
 
-  const handleInfoMouseEnter = () => {
-    timeoutRef.current = setTimeout(() => {
-      setShowInfoDiv(true);
-    }, 200);
-  };
+        /* Utility classes (simulating Tailwind) */
+        .bg-primary { background-color: var(--bg-primary); }
+        .bg-secondary { background-color: var(--bg-secondary); }
+        .bg-tertiary { background-color: var(--bg-tertiary); }
+        .text-primary { color: var(--text-primary); }
+        .text-secondary { color: var(--text-secondary); }
+        .text-muted { color: var(--text-muted); }
+        .text-accent { color: var(--accent-primary); }
+        .text-2xl { font-size: 1.5rem; line-height: 2rem; }
+        .text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+        .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+        .font-semibold { font-weight: 600; }
+        .font-medium { font-weight: 500; }
+        .mb-1 { margin-bottom: 0.25rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mt-6 { margin-top: 1.5rem; }
+        .ml-2 { margin-left: 0.5rem; }
+        .mr-2 { margin-right: 0.5rem; }
+        .w-full { width: 100%; }
+        .max-w-md { max-width: 28rem; }
+        .max-w-2xl { max-width: 42rem; }
+        .mx-auto { margin-left: auto; margin-right: auto; }
+        .p-2 { padding: 0.5rem; }
+        .p-3 { padding: 0.75rem; }
+        .p-4 { padding: 1rem; }
+        .p-6 { padding: 1.5rem; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+        .border { border-width: 1px; border-style: solid; border-color: var(--border-color); }
+        .border-accent { border-color: var(--accent-primary); }
+        .rounded-sm { border-radius: var(--border-radius-sm); }
+        .rounded-md { border-radius: var(--border-radius-md); }
+        .rounded-lg { border-radius: var(--border-radius-lg); }
+        .rounded-full { border-radius: var(--border-radius-full); }
+        .shadow-md { box-shadow: var(--shadow-md); }
+        .shadow-lg { box-shadow: var(--shadow-lg); }
+        .resize-none { resize: none; } /* Changed from resize-both */
+        .min-h-\[150px\] { min-height: 150px; } /* Increased min-height */
+        .transition-all { transition-property: all; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 200ms; }
+        .focus\:ring { outline: 2px solid transparent; outline-offset: 2px; box-shadow: 0 0 0 3px var(--accent-primary-light); }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-center { justify-content: center; }
+        .flex-grow { flex-grow: 1; }
+        .relative { position: relative; }
+        .absolute { position: absolute; }
+        .top-full { top: 100%; }
+        .right-0 { right: 0; }
+        .z-10 { z-index: 10; }
+        .list-disc { list-style-type: disc; }
+        .list-inside { list-style-position: inside; }
+        .whitespace-pre-wrap { white-space: pre-wrap; }
+        .opacity-50 { opacity: 0.5; }
+        .cursor-pointer { cursor: pointer; }
+        .cursor-not-allowed { cursor: not-allowed; }
+        .min-h-screen { min-height: 100vh; }
+        .h-6 { height: 1.5rem; }
+        .w-6 { width: 1.5rem; }
+        .h-3 { height: 0.75rem; } /* Adjusted progress bar height */
 
-  const handleInfoMouseLeave = () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    setShowInfoDiv(false);
-  };
+        /* --- Component Specific Styles --- */
 
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
+        /* Text Area */
+        .custom-textarea {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: var(--border-radius-md);
+            padding: 0.75rem; /* Increased padding */
+            min-height: 150px;
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .custom-textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.3); /* Cyan focus ring */
+        }
+        .custom-textarea::placeholder {
+            color: var(--text-muted);
+        }
 
-  return (
-    <div className="min-h-screen bg-gray-800 flex flex-col items-center p-4 font-sans relative">
-      <h1 className="text-2xl font-semibold text-white mb-4 self-start mt-4">MTG Proxy Generator</h1>
-      <textarea
-        className="w-full max-w-md h-48 p-2 border rounded-md bg-gray-700 text-white resize-both mb-4 min-h-[100px] min-w-[200px] transition-all duration-300 focus:scale-[1.02]"
-        style={{ borderColor: accentColor, borderWidth: '3px' }}
-        placeholder="Enter text here..."
-      />
-      <div className="w-full max-w-md flex items-center mb-4">
-        <div className="bg-gray-700 rounded-full h-2.5 flex-grow mr-2">
-          <div
-            className="h-2.5 rounded-full transition-all duration-300"
-            style={{ width: '0%', backgroundColor: accentColor }}
-            id="progress-bar"
-          />
-        </div>
-        <span className="text-white text-sm" id="progress-percentage">
-          0%
-        </span>
-      </div>
-      <hr className="w-full max-w-md border-gray-700 mb-4" />
-      <div className="w-full max-w-md flex items-center justify-center">
-        <button
-          className="w-full py-2 rounded-md text-white font-semibold hover:bg-opacity-90 transition-colors duration-200 mr-2 relative"
-          style={{ backgroundColor: accentColor }}
-        >
-          Generate Proxies
-        </button>
-        <div
-          className="relative cursor-pointer ml-2"
-          onMouseEnter={handleInfoMouseEnter}
-          onMouseLeave={handleInfoMouseLeave}
-        >
-          <InformationCircleIcon className="h-6 w-6 text-gray-400 hover:text-white" />
-          {showInfoDiv && (
-            <div className="absolute bg-gray-900 text-white text-sm p-2 rounded-md shadow-lg w-64 mt-4" style={{ position: 'absolute', top: '100%', right: '100%', zIndex: 10 }}>
-              <p>
-                Enter card names, one per line. For specific numbers,
-                use "Card Name #". Examples:
-              </p>
-              <ul className="list-disc list-inside">
-                <li>Black Lotus</li>
-                <li>8 Mountain</li>
-                <li>Island 6</li>
-              </ul>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
+        /* Progress Bar */
+        .progress-container {
+            background-color: var(--bg-tertiary);
+            border-radius: var(--border-radius-full);
+            overflow: hidden; /* Ensure inner bar respects radius */
+        }
+        .progress-bar {
+            background-color: var(--accent-primary);
+            height: 100%;
+            border-radius: var(--border-radius-full);
+            transition: width 0.4s ease; /* Smoother transition */
+        }
 
-export default MTGProxyGenerator;
+        /* Button */
+        .custom-button {
+            background-color: var(--accent-primary);
+            color: var(--bg-primary); /* Dark text on light button */
+            border: 2px solid transparent;
+            padding: 0.75rem 1.5rem; /* Larger padding */
+            border-radius: var(--border-radius-lg);
+            font-weight: 600; /* Bolder text */
+            transition: all 0.2s ease-in-out;
+            box-shadow: var(--shadow-sm);
+            cursor: pointer;
+        }
+        .custom-button:hover:not(:disabled) {
+            background-color: var(--accent-primary-light);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px); /* Subtle lift */
+        }
+        .custom-button:focus {
+             outline: none;
+             box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.4); /* Focus ring */
+        }
+        .custom-button:active:not(:disabled) {
+            background-color: var(--accent-primary-dark);
+            transform: translateY(0px); /* Press down effect */
+            box-shadow: var(--shadow-sm);
+        }
+        .custom-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Info Icon & Tooltip */
+        .info-icon {
+            color: var(--text-muted);
+            transition: color 0.2s ease;
+        }
+        .info-icon:hover {
+            color: var(--text-primary);
+        }
+        .tooltip {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--shadow-lg);
+            width: 16rem; /* w-64 */
+            padding: 0.75rem; /* p-3 */
+            margin-top: 0.5rem; /* mt-2 */
+        }
+        .tooltip p, .tooltip ul {
+            margin-bottom: 0.5rem;
+        }
+        .tooltip ul {
+             padding-left: 1.25rem; /* Indent list */
+        }
+        .tooltip li {
+            margin-bottom: 0.25rem;
+        }
+
+        /* Error Message */
+        .error-message {
+            background-color: var(--error-bg);
+            border: 1px solid var(--error-border);
+            color: var(--error-text);
+            border-radius: var(--border-radius-md);
+            padding: 0.75rem; /* p-3 */
+            margin-top: 1rem; /* mt-4 */
+            max-width: 28rem; /* max-w-md */
+            width: 100%;
+            white-space: pre-wrap;
+            font-size: 0.875rem; /* text-sm */
+        }
+        .error-message strong {
+            color: var(--text-primary); /* Make "Error:" stand out more */
+        }
+
+        /* Separator */
+        .separator {
+            border-color: var(--bg-tertiary); /* Subtle separator */
+        }
+
+    </style>
+</head>
+<body class="bg-primary">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useRef, useEffect } = React;
+    const { createRoot } = ReactDOM;
+
+    const MTGProxyGenerator = () => {
+        // --- State and Refs ---
+        const [showInfoDiv, setShowInfoDiv] = useState(false);
+        const timeoutRef = useRef(null);
+        const textAreaRef = useRef(null);
+        const progressBarRef = useRef(null);
+        const progressPercentageRef = useRef(null);
+        const [isGenerating, setIsGenerating] = useState(false);
+        const [generationError, setGenerationError] = useState(null);
+
+        // --- Effects ---
+        useEffect(() => {
+            // Cleanup timeout on component unmount
+            return () => {
+                if (timeoutRef.current) {
+                    clearTimeout(timeoutRef.current);
+                }
+            };
+        }, []);
+
+        // --- Event Handlers ---
+        const handleInfoMouseEnter = () => {
+            // Clear any existing timeout
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            // Set a new timeout to show the tooltip
+            timeoutRef.current = setTimeout(() => {
+                setShowInfoDiv(true);
+            }, 200); // Short delay before showing
+        };
+
+        const handleInfoMouseLeave = () => {
+            // Clear timeout if mouse leaves before it triggers
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            // Hide the tooltip immediately
+            setShowInfoDiv(false);
+        };
+
+        // --- Helper Functions ---
+        // Fetch card image URL from Scryfall API (with fuzzy fallback)
+        const fetchCardImage = async (cardName) => {
+            const exactUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`;
+            const fuzzyUrl = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`;
+            let response, data;
+
+            try {
+                // Try exact match first
+                response = await fetch(exactUrl);
+                if (!response.ok) {
+                    // If exact fails, try fuzzy match
+                    console.log(`Exact match failed for "${cardName}", trying fuzzy...`);
+                    response = await fetch(fuzzyUrl);
+                    if (!response.ok) {
+                        // If both fail, throw a combined error
+                        throw new Error(`Scryfall API error: ${response.status} (Fuzzy) for "${cardName}"`);
+                    }
+                }
+                data = await response.json();
+
+                // Find the best available image URI
+                if (data?.image_uris?.png) return data.image_uris.png;
+                if (data?.image_uris?.large) return data.image_uris.large;
+                if (data?.image_uris?.normal) return data.image_uris.normal;
+
+                // Handle double-faced cards (use front face)
+                if (data?.card_faces?.[0]?.image_uris) {
+                    const faceUris = data.card_faces[0].image_uris;
+                    if (faceUris.png) return faceUris.png;
+                    if (faceUris.large) return faceUris.large;
+                    if (faceUris.normal) return faceUris.normal;
+                }
+
+                // If no suitable image found even if card data exists
+                throw new Error(`No suitable image found for card: ${data?.name || cardName}`);
+
+            } catch (error) {
+                console.error(`Error fetching card image for "${cardName}":`, error);
+                // Re-throw a cleaned-up error message
+                throw new Error(error.message.includes('Scryfall API error') ? error.message : `Failed to fetch "${cardName}": ${error.message}`);
+            }
+        };
+
+        // --- PDF Generation ---
+        const handleGenerate = async () => {
+            if (!textAreaRef.current) return;
+
+            const lines = textAreaRef.current.value
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line !== '');
+
+            if (lines.length === 0) {
+                setGenerationError("Please enter at least one card name.");
+                return;
+            }
+
+            setIsGenerating(true);
+            setGenerationError(null);
+            let processedLines = 0;
+            const totalLines = lines.length;
+
+            // Reset progress bar
+            if (progressBarRef.current && progressPercentageRef.current) {
+                progressBarRef.current.style.width = '0%';
+                progressPercentageRef.current.textContent = '0%';
+            }
+
+            // Dynamically load jsPDF
+            const loadJsPDF = () => new Promise((resolve, reject) => {
+                if (typeof window === 'undefined') return reject(new Error('Not in browser'));
+                if (typeof window.jspdf?.jsPDF !== 'undefined') return resolve(window.jspdf.jsPDF);
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                script.async = true;
+                script.onload = () => typeof window.jspdf?.jsPDF !== 'undefined' ? resolve(window.jspdf.jsPDF) : reject(new Error('jsPDF loaded but constructor not found.'));
+                script.onerror = () => reject(new Error('Failed to load jsPDF script.'));
+                document.head.appendChild(script);
+            });
+
+            try {
+                const cardData = []; // { url: string, quantity: number }
+                const errors = [];
+
+                // 1. Fetch card data
+                for (const line of lines) {
+                    let cardName = line;
+                    let quantity = 1;
+                    const match = line.match(/^(?:(\d+)\s*x?\s*(.+?)|(.+?)\s*x?(\d+))$/i);
+                    if (match) {
+                        quantity = parseInt(match[1] || match[4], 10);
+                        cardName = (match[2] || match[3]).trim();
+                    }
+                    if (isNaN(quantity) || quantity < 1) quantity = 1;
+
+                    try {
+                        const imageUrl = await fetchCardImage(cardName);
+                        cardData.push({ url: imageUrl, quantity });
+                    } catch (error) {
+                        errors.push(error.message); // Collect fetch errors
+                    }
+
+                    processedLines++;
+                    if (progressBarRef.current && progressPercentageRef.current) {
+                        const percentage = Math.round((processedLines / totalLines) * 100);
+                        progressBarRef.current.style.width = `${percentage}%`;
+                        progressPercentageRef.current.textContent = `${percentage}%`;
+                    }
+                }
+
+                if (cardData.length === 0) {
+                    setGenerationError(`No card images could be fetched.\n${errors.join('\n')}`);
+                    setIsGenerating(false);
+                    return;
+                }
+
+                // 2. Load jsPDF and initialize document
+                const jsPDF = await loadJsPDF();
+                const doc = new jsPDF({ orientation: 'portrait', unit: 'in', format: 'letter' });
+
+                // --- PDF Layout Constants (Updated with 5mm margin/gap) ---
+                const mmToIn = (mm) => mm / 25.4;
+                const cardWidthIn = 2.5;
+                const cardHeightIn = 3.5;
+                const cardsPerRow = 3;
+                const cardsPerCol = 3; // Still aiming for 3x3
+                const totalCardsPerPage = cardsPerRow * cardsPerCol;
+                const pageW = doc.internal.pageSize.getWidth(); // 8.5 in
+                const pageH = doc.internal.pageSize.getHeight(); // 11 in
+
+                // ** NEW: 5mm margin and 5mm gap **
+                const marginIn = mmToIn(5); // ~0.197 in
+                const gapIn = mmToIn(5);    // ~0.197 in
+
+                // Check if layout fits (it should now)
+                const requiredWidth = marginIn * 2 + cardsPerRow * cardWidthIn + (cardsPerRow - 1) * gapIn;
+                const requiredHeight = marginIn * 2 + cardsPerCol * cardHeightIn + (cardsPerCol - 1) * gapIn;
+                 console.log(`Required PDF dimensions: ${requiredWidth.toFixed(2)}in x ${requiredHeight.toFixed(2)}in`);
+                 console.log(`Page dimensions: ${pageW.toFixed(2)}in x ${pageH.toFixed(2)}in`);
+                 if (requiredWidth > pageW || requiredHeight > pageH) {
+                     console.warn("Calculated layout might exceed page size slightly. Adjusting...");
+                     // Optional: Add logic here to reduce gaps/margins further if needed,
+                     // or switch to fewer cards per page if it drastically exceeds limits.
+                 }
+
+
+                let currentX = marginIn; // Start at left margin
+                let currentY = marginIn; // Start at top margin
+                let cardsOnCurrentPage = 0;
+                let totalCardsAddedToPdf = 0;
+
+                // 3. Add Images to PDF
+                for (const card of cardData) {
+                    for (let j = 0; j < card.quantity; j++) {
+                        if (cardsOnCurrentPage >= totalCardsPerPage) {
+                            doc.addPage();
+                            currentX = marginIn;
+                            currentY = marginIn;
+                            cardsOnCurrentPage = 0;
+                        }
+
+                        try {
+                            const imageResponse = await fetch(card.url);
+                            if (!imageResponse.ok) throw new Error(`HTTP ${imageResponse.status}`);
+                            const imageBlob = await imageResponse.blob();
+                            const imageDataUrl = await new Promise((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onloadend = () => resolve(reader.result);
+                                reader.onerror = reject;
+                                reader.readAsDataURL(imageBlob);
+                            });
+                            const imageType = card.url.toUpperCase().includes('PNG') ? 'PNG' : 'JPEG';
+
+                            doc.addImage(imageDataUrl, imageType, currentX, currentY, cardWidthIn, cardHeightIn);
+                            cardsOnCurrentPage++;
+                            totalCardsAddedToPdf++;
+
+                            // Move to next position (right, then down)
+                            currentX += cardWidthIn + gapIn;
+                            if (cardsOnCurrentPage % cardsPerRow === 0) { // End of a row
+                                currentX = marginIn; // Reset X
+                                currentY += cardHeightIn + gapIn; // Move down
+                            }
+                        } catch (error) {
+                            console.error(`Error adding image ${card.url} to PDF:`, error);
+                            errors.push(`Error adding image for ${card.url.split('/').pop()}: ${error.message}`);
+                        }
+                    }
+                }
+
+                // 4. Finalize and Save
+                if (errors.length > 0) {
+                    setGenerationError(`PDF generated, but with issues:\n${errors.join('\n')}`);
+                }
+
+                if (totalCardsAddedToPdf > 0) {
+                    doc.save('mtg-proxies.pdf');
+                } else if (errors.length === 0) {
+                    setGenerationError("No cards were generated. Please check your input list.");
+                }
+
+            } catch (error) {
+                console.error("Fatal PDF Generation Error:", error);
+                setGenerationError(`Fatal Error: ${error.message || "An unexpected error occurred during PDF generation."}`);
+            } finally {
+                setIsGenerating(false);
+            }
+        }; // End handleGenerate
+
+        // --- Render JSX ---
+        return (
+            <div className="min-h-screen bg-primary flex flex-col items-center p-4 md:p-6 font-sans w-full">
+                {/* Constrain content width and center it */}
+                <div className="w-full max-w-2xl mx-auto flex flex-col items-center">
+
+                    {/* Title */}
+                    <h1 className="text-2xl font-semibold text-primary mb-6 mt-4">
+                        MTG Proxy Generator
+                    </h1>
+
+                    {/* Text Input Area */}
+                    <textarea
+                        className="w-full max-w-md custom-textarea mb-4 resize-none" // Use custom class, disable resize
+                        placeholder="Enter card names, one per line...&#10;Examples:&#10;4 Sol Ring&#10;Island x8&#10;Ragavan, Nimble Pilferer"
+                        ref={textAreaRef}
+                        disabled={isGenerating}
+                        rows="8" // Suggest a starting height
+                    />
+
+                    {/* Progress Bar Section */}
+                    <div className="w-full max-w-md flex items-center mb-4 px-1"> {/* Added slight padding */}
+                        <div className="progress-container flex-grow h-3 mr-2"> {/* Use custom class */}
+                            <div
+                                className="progress-bar" // Use custom class
+                                style={{ width: '0%' }}
+                                ref={progressBarRef}
+                            />
+                        </div>
+                        <span className="text-secondary text-sm font-medium" ref={progressPercentageRef}>
+                            0%
+                        </span>
+                    </div>
+
+                    {/* Separator */}
+                    <hr className="w-full max-w-md separator mb-6" /> {/* Use custom class */}
+
+                    {/* Button and Info Section */}
+                    <div className="w-full max-w-md flex items-center justify-center mb-6">
+                        {/* Generate Button */}
+                        <button
+                            className="custom-button mr-2" // Use custom class
+                            onClick={handleGenerate}
+                            disabled={isGenerating}
+                        >
+                            {isGenerating ? 'Generating...' : 'Generate Proxies'}
+                        </button>
+
+                        {/* Info Icon and Tooltip Trigger */}
+                        <div
+                            className="relative cursor-pointer ml-2"
+                            onMouseEnter={handleInfoMouseEnter}
+                            onMouseLeave={handleInfoMouseLeave}
+                        >
+                            {/* SVG Info Icon */}
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 info-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                             </svg>
+                             {/* Tooltip Content */}
+                            {showInfoDiv && (
+                                <div className="absolute tooltip z-10" style={{ top: '100%', right: 0 }}> {/* Use custom class */}
+                                    <p className="font-semibold text-primary mb-1">Input Format:</p>
+                                    <p className="mb-2">
+                                        Enter one card per line. Specify quantities like "4 Card Name", "Card Name x4", or "Card Name 4". Fuzzy matching used if exact name fails.
+                                    </p>
+                                    <p className="font-semibold text-primary mb-1">Examples:</p>
+                                    <ul className="list-disc list-inside">
+                                        <li>Black Lotus</li>
+                                        <li>4 Sol Ring</li>
+                                        <li>Mountain x8</li>
+                                        <li>Island 6</li>
+                                        <li>Ragavan // Nimble Pilferer</li>
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Error Message Area */}
+                    {generationError && (
+                        <div className="error-message"> {/* Use custom class */}
+                            <strong>Error:</strong><br/>
+                            {generationError}
+                        </div>
+                    )}
+                </div>
+            </div> // End of main container
+        );
+    }; // End of MTGProxyGenerator component
+
+    // --- React App Initialization ---
+    const rootElement = document.getElementById('root');
+    const root = createRoot(rootElement);
+    root.render(<MTGProxyGenerator />);
+
+  </script>
+</body>
+</html>
