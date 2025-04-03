@@ -11,19 +11,19 @@
     <style>
         /* --- Theme Variables --- */
         :root {
-            --bg-primary: #111827; 
-            --bg-secondary: #1f2937; 
-            --bg-tertiary: #374151; 
-            --text-primary: #f9fafb; 
-            --text-secondary: #d1d5db; 
-            --text-muted: #9ca3af; 
-			--accent-primary: #a855f7; /* A nice medium purple */
-			--accent-primary-dark: #6b21a8; /* A darker shade of purple */
-			--accent-primary-light: #d8b4fe; /* A lighter shade of purple */
-            --border-color: #4b5563; 
-            --error-bg: #450a0a; 
-            --error-border: #b91c1c; 
-            --error-text: #fca5a5; 
+            --bg-primary: #111827;
+            --bg-secondary: #1f2937;
+            --bg-tertiary: #374151;
+            --text-primary: #f9fafb;
+            --text-secondary: #d1d5db;
+            --text-muted: #9ca3af;
+            --accent-primary: #a855f7; /* A nice medium purple */
+            --accent-primary-dark: #6b21a8; /* A darker shade of purple */
+            --accent-primary-light: #d8b4fe; /* A lighter shade of purple */
+            --border-color: #4b5563;
+            --error-bg: #450a0a;
+            --error-border: #b91c1c;
+            --error-text: #fca5a5;
             --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
             --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
             --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
@@ -159,8 +159,8 @@
             transform: translateY(-1px); /* Subtle lift */
         }
         .custom-button:focus {
-             outline: none;
-             box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.4); /* Focus ring */
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.4); /* Focus ring */
         }
         .custom-button:active:not(:disabled) {
             background-color: var(--accent-primary-dark);
@@ -195,7 +195,7 @@
             margin-bottom: 0.5rem;
         }
         .tooltip ul {
-             padding-left: 1.25rem; /* Indent list */
+            padding-left: 1.25rem; /* Indent list */
         }
         .tooltip li {
             margin-bottom: 0.25rem;
@@ -226,354 +226,358 @@
     </style>
 </head>
 <body class="bg-primary">
-  <div id="root"></div>
+    <div id="root"></div>
 
-  <script type="text/babel">
-    const { useState, useRef, useEffect } = React;
-    const { createRoot } = ReactDOM;
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+        const { createRoot } = ReactDOM;
 
-    const MTGProxyGenerator = () => {
-        // --- State and Refs ---
-        const [showInfoDiv, setShowInfoDiv] = useState(false);
-        const timeoutRef = useRef(null);
-        const textAreaRef = useRef(null);
-        const progressBarRef = useRef(null);
-        const progressPercentageRef = useRef(null);
-        const [isGenerating, setIsGenerating] = useState(false);
-        const [generationError, setGenerationError] = useState(null);
+        const MTGProxyGenerator = () => {
+            // --- State and Refs ---
+            const [showInfoDiv, setShowInfoDiv] = useState(false);
+            const timeoutRef = useRef(null);
+            const textAreaRef = useRef(null);
+            const progressBarRef = useRef(null);
+            const progressPercentageRef = useRef(null);
+            const [isGenerating, setIsGenerating] = useState(false);
+            const [generationError, setGenerationError] = useState(null);
 
-        // --- Effects ---
-        useEffect(() => {
-            // Cleanup timeout on component unmount
-            return () => {
-                if (timeoutRef.current) {
-                    clearTimeout(timeoutRef.current);
+            // --- Effects ---
+            useEffect(() => {
+                // Cleanup timeout on component unmount
+                return () => {
+                    if (timeoutRef.current) {
+                        clearTimeout(timeoutRef.current);
+                    }
+                };
+            }, []);
+
+            // --- Event Handlers ---
+            const handleInfoMouseEnter = () => {
+                // Clear any existing timeout
+                if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                // Set a new timeout to show the tooltip
+                timeoutRef.current = setTimeout(() => {
+                    setShowInfoDiv(true);
+                }, 200); // Short delay before showing
+            };
+
+            const handleInfoMouseLeave = () => {
+                // Clear timeout if mouse leaves before it triggers
+                if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                // Hide the tooltip immediately
+                setShowInfoDiv(false);
+            };
+
+            // --- Helper Functions ---
+            // Fetch card image URL from Scryfall API (with fuzzy fallback)
+            const fetchCardImage = async (cardName) => {
+                const exactUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`;
+                const fuzzyUrl = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`;
+                let response, data;
+
+                try {
+                    // Try exact match first
+                    response = await fetch(exactUrl);
+                    if (!response.ok) {
+                        // If exact fails, try fuzzy match
+                        console.log(`Exact match failed for "${cardName}", trying fuzzy...`);
+                        response = await fetch(fuzzyUrl);
+                        if (!response.ok) {
+                            // If both fail, throw a combined error
+                            throw new Error(`Scryfall API error: ${response.status} (Fuzzy) for "${cardName}"`);
+                        }
+                    }
+                    data = await response.json();
+
+                    // Handle double-faced cards (return an array of URLs)
+                    if (data?.card_faces) {
+                        return data.card_faces.map(face => {
+                            if(face?.image_uris?.png) return face.image_uris.png;
+                            if(face?.image_uris?.large) return face.image_uris.large;
+                            return face?.image_uris?.normal;
+                        }).filter(url => url !== undefined); //remove undefined urls
+                    }
+
+                    // Find the best available image URI for single-faced cards
+                    if (data?.image_uris?.png) return [data.image_uris.png];  // Wrap in array for consistency
+                    if (data?.image_uris?.large) return [data.image_uris.large];
+                    if (data?.image_uris?.normal) return [data.image_uris.normal];
+
+                    // If no suitable image found even if card data exists
+                    throw new Error(`No suitable image found for card: ${data?.name || cardName}`);
+
+                } catch (error) {
+                    console.error(`Error fetching card image for "${cardName}":`, error);
+                    // Re-throw a cleaned-up error message
+                    throw new Error(error.message.includes('Scryfall API error') ? error.message : `Failed to fetch "${cardName}": ${error.message}`);
                 }
             };
-        }, []);
 
-        // --- Event Handlers ---
-        const handleInfoMouseEnter = () => {
-            // Clear any existing timeout
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
-            // Set a new timeout to show the tooltip
-            timeoutRef.current = setTimeout(() => {
-                setShowInfoDiv(true);
-            }, 200); // Short delay before showing
-        };
+            // --- PDF Generation ---
+            const handleGenerate = async () => {
+                if (!textAreaRef.current) return;
 
-        const handleInfoMouseLeave = () => {
-            // Clear timeout if mouse leaves before it triggers
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
-            // Hide the tooltip immediately
-            setShowInfoDiv(false);
-        };
+                const lines = textAreaRef.current.value
+                    .split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line !== '');
 
-        // --- Helper Functions ---
-        // Fetch card image URL from Scryfall API (with fuzzy fallback)
-        const fetchCardImage = async (cardName) => {
-            const exactUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`;
-            const fuzzyUrl = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`;
-            let response, data;
-
-            try {
-                // Try exact match first
-                response = await fetch(exactUrl);
-                if (!response.ok) {
-                    // If exact fails, try fuzzy match
-                    console.log(`Exact match failed for "${cardName}", trying fuzzy...`);
-                    response = await fetch(fuzzyUrl);
-                    if (!response.ok) {
-                        // If both fail, throw a combined error
-                        throw new Error(`Scryfall API error: ${response.status} (Fuzzy) for "${cardName}"`);
-                    }
-                }
-                data = await response.json();
-
-                // Find the best available image URI
-                if (data?.image_uris?.png) return data.image_uris.png;
-                if (data?.image_uris?.large) return data.image_uris.large;
-                if (data?.image_uris?.normal) return data.image_uris.normal;
-
-                // Handle double-faced cards (use front face)
-                if (data?.card_faces?.[0]?.image_uris) {
-                    const faceUris = data.card_faces[0].image_uris;
-                    if (faceUris.png) return faceUris.png;
-                    if (faceUris.large) return faceUris.large;
-                    if (faceUris.normal) return faceUris.normal;
-                }
-
-                // If no suitable image found even if card data exists
-                throw new Error(`No suitable image found for card: ${data?.name || cardName}`);
-
-            } catch (error) {
-                console.error(`Error fetching card image for "${cardName}":`, error);
-                // Re-throw a cleaned-up error message
-                throw new Error(error.message.includes('Scryfall API error') ? error.message : `Failed to fetch "${cardName}": ${error.message}`);
-            }
-        };
-
-        // --- PDF Generation ---
-        const handleGenerate = async () => {
-            if (!textAreaRef.current) return;
-
-            const lines = textAreaRef.current.value
-                .split('\n')
-                .map(line => line.trim())
-                .filter(line => line !== '');
-
-            if (lines.length === 0) {
-                setGenerationError("Please enter at least one card name.");
-                return;
-            }
-
-            setIsGenerating(true);
-            setGenerationError(null);
-            let processedLines = 0;
-            const totalLines = lines.length;
-
-            // Reset progress bar
-            if (progressBarRef.current && progressPercentageRef.current) {
-                progressBarRef.current.style.width = '0%';
-                progressPercentageRef.current.textContent = '0%';
-            }
-
-            // Dynamically load jsPDF
-            const loadJsPDF = () => new Promise((resolve, reject) => {
-                if (typeof window === 'undefined') return reject(new Error('Not in browser'));
-                if (typeof window.jspdf?.jsPDF !== 'undefined') return resolve(window.jspdf.jsPDF);
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-                script.async = true;
-                script.onload = () => typeof window.jspdf?.jsPDF !== 'undefined' ? resolve(window.jspdf.jsPDF) : reject(new Error('jsPDF loaded but constructor not found.'));
-                script.onerror = () => reject(new Error('Failed to load jsPDF script.'));
-                document.head.appendChild(script);
-            });
-
-            try {
-                const cardData = []; // { url: string, quantity: number }
-                const errors = [];
-
-                // 1. Fetch card data
-                for (const line of lines) {
-                    let cardName = line;
-                    let quantity = 1;
-                    const match = line.match(/^(?:(\d+)\s*x?\s*(.+?)|(.+?)\s*x?(\d+))$/i);
-                    if (match) {
-                        quantity = parseInt(match[1] || match[4], 10);
-                        cardName = (match[2] || match[3]).trim();
-                    }
-                    if (isNaN(quantity) || quantity < 1) quantity = 1;
-
-                    try {
-                        const imageUrl = await fetchCardImage(cardName);
-                        cardData.push({ url: imageUrl, quantity });
-                    } catch (error) {
-                        errors.push(error.message); // Collect fetch errors
-                    }
-
-                    processedLines++;
-                    if (progressBarRef.current && progressPercentageRef.current) {
-                        const percentage = Math.round((processedLines / totalLines) * 100);
-                        progressBarRef.current.style.width = `${percentage}%`;
-                        progressPercentageRef.current.textContent = `${percentage}%`;
-                    }
-                }
-
-                if (cardData.length === 0) {
-                    setGenerationError(`No card images could be fetched.\n${errors.join('\n')}`);
-                    setIsGenerating(false);
+                if (lines.length === 0) {
+                    setGenerationError("Please enter at least one card name.");
                     return;
                 }
 
-                // 2. Load jsPDF and initialize document
-                const jsPDF = await loadJsPDF();
-                const doc = new jsPDF({ orientation: 'portrait', unit: 'in', format: 'letter' });
+                setIsGenerating(true);
+                setGenerationError(null);
+                let processedLines = 0;
+                const totalLines = lines.length;
 
-                // --- PDF Layout Constants (Updated with 5mm margin/gap) ---
-                const mmToIn = (mm) => mm / 25.4;
-                const cardWidthIn = 2.5;
-                const cardHeightIn = 3.5;
-                const cardsPerRow = 3;
-                const cardsPerCol = 3; // Still aiming for 3x3
-                const totalCardsPerPage = cardsPerRow * cardsPerCol;
-                const pageW = doc.internal.pageSize.getWidth(); // 8.5 in
-                const pageH = doc.internal.pageSize.getHeight(); // 11 in
+                // Reset progress bar
+                if (progressBarRef.current && progressPercentageRef.current) {
+                    progressBarRef.current.style.width = '0%';
+                    progressPercentageRef.current.textContent = '0%';
+                }
 
-                // ** NEW: 5mm margin and 5mm gap **
-                const marginIn = mmToIn(3); // ~0.197 in
-                const gapIn = mmToIn(3);    // ~0.197 in
+                // Dynamically load jsPDF
+                const loadJsPDF = () => new Promise((resolve, reject) => {
+                    if (typeof window === 'undefined') return reject(new Error('Not in browser'));
+                    if (typeof window.jspdf?.jsPDF !== 'undefined') return resolve(window.jspdf.jsPDF);
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                    script.async = true;
+                    script.onload = () => typeof window.jspdf?.jsPDF !== 'undefined' ? resolve(window.jspdf.jsPDF) : reject(new Error('jsPDF loaded but constructor not found.'));
+                    script.onerror = () => reject(new Error('Failed to load jsPDF script.'));
+                    document.head.appendChild(script);
+                });
 
-                // Check if layout fits (it should now)
-                const requiredWidth = marginIn * 2 + cardsPerRow * cardWidthIn + (cardsPerRow - 1) * gapIn;
-                const requiredHeight = marginIn * 2 + cardsPerCol * cardHeightIn + (cardsPerCol - 1) * gapIn;
-                 console.log(`Required PDF dimensions: ${requiredWidth.toFixed(2)}in x ${requiredHeight.toFixed(2)}in`);
-                 console.log(`Page dimensions: ${pageW.toFixed(2)}in x ${pageH.toFixed(2)}in`);
-                 if (requiredWidth > pageW || requiredHeight > pageH) {
-                     console.warn("Calculated layout might exceed page size slightly. Adjusting...");
-                     // Optional: Add logic here to reduce gaps/margins further if needed,
-                     // or switch to fewer cards per page if it drastically exceeds limits.
-                 }
+                try {
+                    const cardData = []; // { url: string, quantity: number }[]  <- now array of urls
+                    const errors = [];
 
-
-                let currentX = marginIn; // Start at left margin
-                let currentY = marginIn; // Start at top margin
-                let cardsOnCurrentPage = 0;
-                let totalCardsAddedToPdf = 0;
-
-                // 3. Add Images to PDF
-                for (const card of cardData) {
-                    for (let j = 0; j < card.quantity; j++) {
-                        if (cardsOnCurrentPage >= totalCardsPerPage) {
-                            doc.addPage();
-                            currentX = marginIn;
-                            currentY = marginIn;
-                            cardsOnCurrentPage = 0;
+                    // 1. Fetch card data
+                    for (const line of lines) {
+                        let cardName = line;
+                        let quantity = 1;
+                        const match = line.match(/^(?:(\d+)\s*x?\s*(.+?)|(.+?)\s*x?(\d+))$/i);
+                        if (match) {
+                            quantity = parseInt(match[1] || match[4], 10);
+                            cardName = (match[2] || match[3]).trim();
                         }
+                        if (isNaN(quantity) || quantity < 1) quantity = 1;
 
                         try {
-                            const imageResponse = await fetch(card.url);
-                            if (!imageResponse.ok) throw new Error(`HTTP ${imageResponse.status}`);
-                            const imageBlob = await imageResponse.blob();
-                            const imageDataUrl = await new Promise((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onloadend = () => resolve(reader.result);
-                                reader.onerror = reject;
-                                reader.readAsDataURL(imageBlob);
-                            });
-                            const imageType = card.url.toUpperCase().includes('PNG') ? 'PNG' : 'JPEG';
+                            const imageUrls = await fetchCardImage(cardName); // Now gets array
+                            imageUrls.forEach(url => {
+                                cardData.push({ url: url, quantity: quantity });  // Add each face
+                            })
 
-                            doc.addImage(imageDataUrl, imageType, currentX, currentY, cardWidthIn, cardHeightIn);
-                            cardsOnCurrentPage++;
-                            totalCardsAddedToPdf++;
-
-                            // Move to next position (right, then down)
-                            currentX += cardWidthIn + gapIn;
-                            if (cardsOnCurrentPage % cardsPerRow === 0) { // End of a row
-                                currentX = marginIn; // Reset X
-                                currentY += cardHeightIn + gapIn; // Move down
-                            }
                         } catch (error) {
-                            console.error(`Error adding image ${card.url} to PDF:`, error);
-                            errors.push(`Error adding image for ${card.url.split('/').pop()}: ${error.message}`);
+                            errors.push(error.message); // Collect fetch errors
+                        }
+
+                        processedLines++;
+                        if (progressBarRef.current && progressPercentageRef.current) {
+                            const percentage = Math.round((processedLines / totalLines) * 100);
+                            progressBarRef.current.style.width = `${percentage}%`;
+                            progressPercentageRef.current.textContent = `${percentage}%`;
                         }
                     }
+
+                    if (cardData.length === 0) {
+                        setGenerationError(`No card images could be fetched.\n${errors.join('\n')}`);
+                        setIsGenerating(false);
+                        return;
+                    }
+
+                    // 2. Load jsPDF and initialize document
+                    const jsPDF = await loadJsPDF();
+                    const doc = new jsPDF({ orientation: 'portrait', unit: 'in', format: 'letter' });
+
+                    // --- PDF Layout Constants (Updated with 5mm margin/gap) ---
+                    const mmToIn = (mm) => mm / 25.4;
+                    const cardWidthIn = 2.5;
+                    const cardHeightIn = 3.5;
+                    const cardsPerRow = 3;
+                    const cardsPerCol = 3; // Still aiming for 3x3
+                    const totalCardsPerPage = cardsPerRow * cardsPerCol;
+                    const pageW = doc.internal.pageSize.getWidth(); // 8.5 in
+                    const pageH = doc.internal.pageSize.getHeight(); // 11 in
+
+                    // ** NEW: 5mm margin and 5mm gap **
+                    const marginIn = mmToIn(3); // ~0.197 in
+                    const gapIn = mmToIn(3);     // ~0.197 in
+
+                    // Check if layout fits (it should now)
+                    const requiredWidth = marginIn * 2 + cardsPerRow * cardWidthIn + (cardsPerRow - 1) * gapIn;
+                    const requiredHeight = marginIn * 2 + cardsPerCol * cardHeightIn + (cardsPerCol - 1) * gapIn;
+                    console.log(`Required PDF dimensions: ${requiredWidth.toFixed(2)}in x ${requiredHeight.toFixed(2)}in`);
+                    console.log(`Page dimensions: ${pageW.toFixed(2)}in x ${pageH.toFixed(2)}in`);
+                    if (requiredWidth > pageW || requiredHeight > pageH) {
+                        console.warn("Calculated layout might exceed page size slightly. Adjusting...");
+                        // Optional: Add logic here to reduce gaps/margins further if needed,
+                        // or switch to fewer cards per page if it drastically exceeds limits.
+                    }
+
+
+                    let currentX = marginIn; // Start at left margin
+                    let currentY = marginIn; // Start at top margin
+                    let cardsOnCurrentPage = 0;
+                    let totalCardsAddedToPdf = 0;
+
+                    // 3. Add Images to PDF
+                    for (const card of cardData) {
+                        for (let j = 0; j < card.quantity; j++) {
+                            if (cardsOnCurrentPage >= totalCardsPerPage) {
+                                doc.addPage();
+                                currentX = marginIn;
+                                currentY = marginIn;
+                                cardsOnCurrentPage = 0;
+                            }
+
+                            try {
+                                const imageResponse = await fetch(card.url);
+                                if (!imageResponse.ok) throw new Error(`HTTP ${imageResponse.status}`);
+                                const imageBlob = await imageResponse.blob();
+                                const imageDataUrl = await new Promise((resolve, reject) => {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => resolve(reader.result);
+                                    reader.onerror = reject;
+                                    reader.readAsDataURL(imageBlob);
+                                });
+                                const imageType = card.url.toUpperCase().includes('PNG') ? 'PNG' : 'JPEG';
+
+                                doc.addImage(imageDataUrl, imageType, currentX, currentY, cardWidthIn, cardHeightIn);
+                                cardsOnCurrentPage++;
+                                totalCardsAddedToPdf++;
+
+                                // Move to next position (right, then down)
+                                currentX += cardWidthIn + gapIn;
+                                if (cardsOnCurrentPage % cardsPerRow === 0) { // End of a row
+                                    currentX = marginIn; // Reset X
+                                    currentY += cardHeightIn + gapIn; // Move down
+                                }
+                            } catch (error) {
+                                console.error(`Error adding image ${card.url} to PDF:`, error);
+                                errors.push(`Error adding image for ${card.url.split('/').pop()}: ${error.message}`);
+                            }
+                        }
+                    }
+
+                    // 4. Finalize and Save
+                    if (errors.length > 0) {
+                        setGenerationError(`PDF generated, but with issues:\n${errors.join('\n')}`);
+                    }
+
+                    if (totalCardsAddedToPdf > 0) {
+                        doc.save('mtg-proxies.pdf');
+                    } else if (errors.length === 0) {
+                        setGenerationError("No cards were generated. Please check your input list.");
+                    }
+
+                } catch (error) {
+                    console.error("Fatal PDF Generation Error:", error);
+                    setGenerationError(`Fatal Error: ${error.message || "An unexpected error occurred during PDF generation."}`);
+                } finally {
+                    setIsGenerating(false);
                 }
+            }; // End handleGenerate
 
-                // 4. Finalize and Save
-                if (errors.length > 0) {
-                    setGenerationError(`PDF generated, but with issues:\n${errors.join('\n')}`);
-                }
+            // --- Render JSX ---
+            return (
+                <div className="min-h-screen bg-primary flex flex-col items-center p-4 md:p-6 font-sans w-full">
+                    {/* Constrain content width and center it */}
+                    <div className="w-full max-w-2xl mx-auto flex flex-col items-center">
 
-                if (totalCardsAddedToPdf > 0) {
-                    doc.save('mtg-proxies.pdf');
-                } else if (errors.length === 0) {
-                    setGenerationError("No cards were generated. Please check your input list.");
-                }
+                        {/* Title */}
+                        <h1 className="text-2xl font-semibold text-primary mb-6 mt-4">
+                            MTG Proxy Generator
+                        </h1>
 
-            } catch (error) {
-                console.error("Fatal PDF Generation Error:", error);
-                setGenerationError(`Fatal Error: ${error.message || "An unexpected error occurred during PDF generation."}`);
-            } finally {
-                setIsGenerating(false);
-            }
-        }; // End handleGenerate
-
-        // --- Render JSX ---
-        return (
-            <div className="min-h-screen bg-primary flex flex-col items-center p-4 md:p-6 font-sans w-full">
-                {/* Constrain content width and center it */}
-                <div className="w-full max-w-2xl mx-auto flex flex-col items-center">
-
-                    {/* Title */}
-                    <h1 className="text-2xl font-semibold text-primary mb-6 mt-4">
-                        MTG Proxy Generator
-                    </h1>
-
-                    {/* Text Input Area */}
-                    <textarea
-                        className="w-full max-w-md custom-textarea mb-4 resize-none" // Use custom class, disable resize
-                        placeholder="Enter card names, one per line...&#10;Examples:&#10;4 Sol Ring&#10;Island x8&#10;Ragavan, Nimble Pilferer"
-                        ref={textAreaRef}
-                        disabled={isGenerating}
-                        rows="8" // Suggest a starting height
-                    />
-
-                    {/* Progress Bar Section */}
-                    <div className="w-full max-w-md flex items-center mb-4 px-1"> {/* Added slight padding */}
-                        <div className="progress-container flex-grow h-3 mr-2"> {/* Use custom class */}
-                            <div
-                                className="progress-bar" // Use custom class
-                                style={{ width: '0%' }}
-                                ref={progressBarRef}
-                            />
-                        </div>
-                        <span className="text-secondary text-sm font-medium" ref={progressPercentageRef}>
-                            0%
-                        </span>
-                    </div>
-
-                    {/* Separator */}
-                    <hr className="w-full max-w-md separator mb-6" /> {/* Use custom class */}
-
-                    {/* Button and Info Section */}
-                    <div className="w-full max-w-md flex items-center justify-center mb-6">
-                        {/* Generate Button */}
-                        <button
-                            className="custom-button mr-2" // Use custom class
-                            onClick={handleGenerate}
+                        {/* Text Input Area */}
+                        <textarea
+                            className="w-full max-w-md custom-textarea mb-4 resize-none" // Use custom class, disable resize
+                            placeholder="Enter card names, one per line...&#10;Examples:&#10;4 Sol Ring&#10;Island x8&#10;Ragavan, Nimble Pilferer"
+                            ref={textAreaRef}
                             disabled={isGenerating}
-                        >
-                            {isGenerating ? 'Generating...' : 'Generate Proxies'}
-                        </button>
+                            rows="8" // Suggest a starting height
+                        />
 
-                        {/* Info Icon and Tooltip Trigger */}
-                        <div
-                            className="relative cursor-pointer ml-2"
-                            onMouseEnter={handleInfoMouseEnter}
-                            onMouseLeave={handleInfoMouseLeave}
-                        >
-                            {/* SVG Info Icon */}
-                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 info-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                             </svg>
-                             {/* Tooltip Content */}
-                            {showInfoDiv && (
-                                <div className="absolute tooltip z-10" style={{ top: '100%', right: 0 }}> {/* Use custom class */}
-                                    <p className="font-semibold text-primary mb-1">Input Format:</p>
-                                    <p className="mb-2">
-                                        Enter one card per line. Specify quantities like "4 Card Name", "Card Name x4", or "Card Name 4". Fuzzy matching used if exact name fails.
-                                    </p>
-                                    <p className="font-semibold text-primary mb-1">Examples:</p>
-                                    <ul className="list-disc list-inside">
-                                        <li>Black Lotus</li>
-                                        <li>4 Sol Ring</li>
-                                        <li>Mountain x8</li>
-                                        <li>Island 6</li>
-                                        <li>Ragavan // Nimble Pilferer</li>
-                                    </ul>
-                                </div>
-                            )}
+                        {/* Progress Bar Section */}
+                        <div className="w-full max-w-md flex items-center mb-4 px-1"> {/* Added slight padding */}
+                            <div className="progress-container flex-grow h-3 mr-2"> {/* Use custom class */}
+                                <div
+                                    className="progress-bar" // Use custom class
+                                    style={{ width: '0%' }}
+                                    ref={progressBarRef}
+                                />
+                            </div>
+                            <span className="text-secondary text-sm font-medium" ref={progressPercentageRef}>
+                                0%
+                            </span>
                         </div>
+
+                        {/* Separator */}
+                        <hr className="w-full max-w-md separator mb-6" /> {/* Use custom class */}
+
+                        {/* Button and Info Section */}
+                        <div className="w-full max-w-md flex items-center justify-center mb-6">
+                            {/* Generate Button */}
+                            <button
+                                className="custom-button mr-2" // Use custom class
+                                onClick={handleGenerate}
+                                disabled={isGenerating}
+                            >
+                                {isGenerating ? 'Generating...' : 'Generate Proxies'}
+                            </button>
+
+                            {/* Info Icon and Tooltip Trigger */}
+                            <div
+                                className="relative cursor-pointer ml-2"
+                                onMouseEnter={handleInfoMouseEnter}
+                                onMouseLeave={handleInfoMouseLeave}
+                            >
+                                {/* SVG Info Icon */}
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 info-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {/* Tooltip Content */}
+                                {showInfoDiv && (
+                                    <div className="absolute tooltip z-10" style={{ top: '100%', right: 0 }}> {/* Use custom class */}
+                                        <p className="font-semibold text-primary mb-1">Input Format:</p>
+                                        <p className="mb-2">
+                                            Enter one card per line. Specify quantities like "4 Card Name", "Card Name x4", or "Card Name 4". Fuzzy matching used if exact name fails.
+                                        </p>
+                                        <p className="font-semibold text-primary mb-1">Examples:</p>
+                                        <ul className="list-disc list-inside">
+                                            <li>Black Lotus</li>
+                                            <li>4 Sol Ring</li>
+                                            <li>Mountain x8</li>
+                                            <li>Island 6</li>
+                                            <li>Ragavan // Nimble Pilferer</li>
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Error Message Area */}
+                        {generationError && (
+                            <div className="error-message"> {/* Use custom class */}
+                                <strong>Error:</strong><br/>
+                                {generationError}
+                            </div>
+                        )}
                     </div>
+                </div> // End of main container
+            );
+        }; // End of MTGProxyGenerator component
 
-                    {/* Error Message Area */}
-                    {generationError && (
-                        <div className="error-message"> {/* Use custom class */}
-                            <strong>Error:</strong><br/>
-                            {generationError}
-                        </div>
-                    )}
-                </div>
-            </div> // End of main container
-        );
-    }; // End of MTGProxyGenerator component
+        // --- React App Initialization ---
+        const rootElement = document.getElementById('root');
+        const root = createRoot(rootElement);
+        root.render(<MTGProxyGenerator />);
 
-    // --- React App Initialization ---
-    const rootElement = document.getElementById('root');
-    const root = createRoot(rootElement);
-    root.render(<MTGProxyGenerator />);
-
-  </script>
+    </script>
 </body>
 </html>
