@@ -24,6 +24,9 @@
             --error-bg: #450a0a;
             --error-border: #b91c1c;
             --error-text: #fca5a5;
+            --success-bg: #166534;
+            --success-border: #16a34a;
+            --success-text: #bbfa9f;
             --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
             --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
             --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
@@ -82,8 +85,8 @@
         .rounded-full { border-radius: var(--border-radius-full); }
         .shadow-md { box-shadow: var(--shadow-md); }
         .shadow-lg { box-shadow: var(--shadow-lg); }
-        .resize-none { resize: none; } /* Changed from resize-both */
-        .min-h-\[150px\] { min-height: 150px; } /* Increased min-height */
+        .resize-none { resize: none; }
+        .min-h-\[150px\] { min-height: 150px; }
         .transition-all { transition-property: all; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 200ms; }
         .focus\:ring { outline: 2px solid transparent; outline-offset: 2px; box-shadow: 0 0 0 3px var(--accent-primary-light); }
         .flex { display: flex; }
@@ -105,7 +108,7 @@
         .min-h-screen { min-height: 100vh; }
         .h-6 { height: 1.5rem; }
         .w-6 { width: 1.5rem; }
-        .h-3 { height: 0.75rem; } /* Adjusted progress bar height */
+        .h-3 { height: 0.75rem; }
 
         /* --- Component Specific Styles --- */
 
@@ -115,14 +118,14 @@
             border: 1px solid var(--border-color);
             color: var(--text-primary);
             border-radius: var(--border-radius-md);
-            padding: 0.75rem; /* Increased padding */
+            padding: 0.75rem;
             min-height: 150px;
             transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
         }
         .custom-textarea:focus {
             outline: none;
             border-color: var(--accent-primary);
-            box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.3); /* Cyan focus ring */
+            box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.4); /* Purple focus ring */
         }
         .custom-textarea::placeholder {
             color: var(--text-muted);
@@ -132,23 +135,23 @@
         .progress-container {
             background-color: var(--bg-tertiary);
             border-radius: var(--border-radius-full);
-            overflow: hidden; /* Ensure inner bar respects radius */
+            overflow: hidden;
         }
         .progress-bar {
             background-color: var(--accent-primary);
             height: 100%;
             border-radius: var(--border-radius-full);
-            transition: width 0.4s ease; /* Smoother transition */
+            transition: width 0.4s ease;
         }
 
         /* Button */
         .custom-button {
             background-color: var(--accent-primary);
-            color: var(--bg-primary); /* Dark text on light button */
+            color: var(--bg-primary);
             border: 2px solid transparent;
-            padding: 0.75rem 1.5rem; /* Larger padding */
+            padding: 0.75rem 1.5rem;
             border-radius: var(--border-radius-lg);
-            font-weight: 600; /* Bolder text */
+            font-weight: 600;
             transition: all 0.2s ease-in-out;
             box-shadow: var(--shadow-sm);
             cursor: pointer;
@@ -156,15 +159,15 @@
         .custom-button:hover:not(:disabled) {
             background-color: var(--accent-primary-light);
             box-shadow: var(--shadow-md);
-            transform: translateY(-1px); /* Subtle lift */
+            transform: translateY(-1px);
         }
         .custom-button:focus {
             outline: none;
-            box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.4); /* Focus ring */
+            box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.4); /* Purple Focus ring */
         }
         .custom-button:active:not(:disabled) {
             background-color: var(--accent-primary-dark);
-            transform: translateY(0px); /* Press down effect */
+            transform: translateY(0px);
             box-shadow: var(--shadow-sm);
         }
         .custom-button:disabled {
@@ -187,7 +190,7 @@
             color: var(--text-secondary);
             border-radius: var(--border-radius-md);
             box-shadow: var(--shadow-lg);
-            width: 16rem; /* w-64 */
+            width: 20rem; /* Increased width slightly */
             padding: 0.75rem; /* p-3 */
             margin-top: 0.5rem; /* mt-2 */
         }
@@ -218,6 +221,20 @@
             color: var(--text-primary); /* Make "Error:" stand out more */
         }
 
+        /* Success Message */
+        .success-message {
+            background-color: var(--success-bg);
+            border: 1px solid var(--success-border);
+            color: var(--success-text);
+            border-radius: var(--border-radius-md);
+            padding: 0.75rem; /* p-3 */
+            margin-top: 1rem; /* mt-4 */
+            max-w-28rem; /* max-w-md */
+            width: 100%;
+            white-space: pre-wrap;
+            font-size: 0.875rem; /* text-sm */
+        }
+
         /* Separator */
         .separator {
             border-color: var(--bg-tertiary); /* Subtle separator */
@@ -241,10 +258,10 @@
             const progressPercentageRef = useRef(null);
             const [isGenerating, setIsGenerating] = useState(false);
             const [generationError, setGenerationError] = useState(null);
+            const [pdfBuildNotification, setPdfBuildNotification] = useState(false);
 
             // --- Effects ---
             useEffect(() => {
-                // Cleanup timeout on component unmount
                 return () => {
                     if (timeoutRef.current) {
                         clearTimeout(timeoutRef.current);
@@ -254,63 +271,129 @@
 
             // --- Event Handlers ---
             const handleInfoMouseEnter = () => {
-                // Clear any existing timeout
                 if (timeoutRef.current) clearTimeout(timeoutRef.current);
-                // Set a new timeout to show the tooltip
                 timeoutRef.current = setTimeout(() => {
                     setShowInfoDiv(true);
-                }, 200); // Short delay before showing
+                }, 200);
             };
 
             const handleInfoMouseLeave = () => {
-                // Clear timeout if mouse leaves before it triggers
                 if (timeoutRef.current) clearTimeout(timeoutRef.current);
-                // Hide the tooltip immediately
                 setShowInfoDiv(false);
             };
 
             // --- Helper Functions ---
-            // Fetch card image URL from Scryfall API (with fuzzy fallback)
-            const fetchCardImage = async (cardName) => {
-                const exactUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`;
-                const fuzzyUrl = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`;
-                let response, data;
 
-                try {
-                    // Try exact match first
-                    response = await fetch(exactUrl);
-                    if (!response.ok) {
-                        // If exact fails, try fuzzy match
-                        console.log(`Exact match failed for "${cardName}", trying fuzzy...`);
-                        response = await fetch(fuzzyUrl);
+            // Helper to get image URIs from Scryfall data (handles single and double faced)
+            const getImageUris = (data) => {
+                const uris = [];
+                if (data?.card_faces) {
+                     data.card_faces.forEach(face => {
+                        if(face?.image_uris?.png) uris.push(face.image_uris.png);
+                        else if(face?.image_uris?.large) uris.push(face.image_uris.large);
+                        else if(face?.image_uris?.normal) uris.push(face.image_uris.normal);
+                    });
+                } else {
+                    if (data?.image_uris?.png) uris.push(data.image_uris.png);
+                    else if (data?.image_uris?.large) uris.push(data.image_uris.large);
+                    else if (data?.image_uris?.normal) uris.push(data.image_uris.normal);
+                }
+                return uris.filter(url => url !== undefined); // Remove undefineds
+            };
+
+            // Fetch card image URL(s) from Scryfall API
+            const fetchCardImage = async (cardName, setCode = null, collectorNumber = null) => {
+                let specificPrintFailed = false; // Flag to track if specific print fetch failed
+
+                // 1. Try Specific Print if specified
+                if (setCode && collectorNumber) {
+                    const specificUrl = `https://api.scryfall.com/cards/${encodeURIComponent(setCode)}/${encodeURIComponent(collectorNumber)}`;
+                    try {
+                        console.log(`Attempting fetch for specific print: ${cardName} (${setCode}, ${collectorNumber}) at ${specificUrl}`);
+                        const response = await fetch(specificUrl);
                         if (!response.ok) {
-                            // If both fail, throw a combined error
-                            throw new Error(`Scryfall API error: ${response.status} (Fuzzy) for "${cardName}"`);
+                             throw new Error(`Scryfall API error: ${response.status} (${response.statusText}) for ${setCode}/${collectorNumber}`);
                         }
+                        const data = await response.json();
+                        const uris = getImageUris(data);
+                        if (uris.length > 0) {
+                            console.log(`Found specific print: ${data.name} (${data.set}, ${data.collector_number})`);
+                            return uris;
+                        }
+                         throw new Error(`No suitable image found for specific print ${setCode}/${collectorNumber}`);
+                    } catch (error) {
+                        console.warn(`Specific print fetch failed for "${cardName} (${setCode}, ${collectorNumber})":`, error.message);
+                        specificPrintFailed = true; // Mark failure and fall through to name search
                     }
-                    data = await response.json();
+                }
 
-                    // Handle double-faced cards (return an array of URLs)
-                    if (data?.card_faces) {
-                        return data.card_faces.map(face => {
-                            if(face?.image_uris?.png) return face.image_uris.png;
-                            if(face?.image_uris?.large) return face.image_uris.large;
-                            return face?.image_uris?.normal;
-                        }).filter(url => url !== undefined); //remove undefined urls
+                // 2. Handle "Random" keyword
+                if (cardName.toLowerCase() === 'random') {
+                    const randomUrl = 'https://api.scryfall.com/cards/random';
+                    try {
+                        const response = await fetch(randomUrl);
+                        if (!response.ok) {
+                            throw new Error(`Scryfall API error: ${response.status} (Random)`);
+                        }
+                        const data = await response.json();
+                        const uris = getImageUris(data);
+                         if (uris.length > 0) return uris;
+                        throw new Error(`No suitable image found for random card`);
+                    } catch (error) {
+                        console.error(`Error fetching random card:`, error);
+                        throw new Error(`Failed to fetch random card: ${error.message}`);
                     }
+                }
 
-                    // Find the best available image URI for single-faced cards
-                    if (data?.image_uris?.png) return [data.image_uris.png];  // Wrap in array for consistency
-                    if (data?.image_uris?.large) return [data.image_uris.large];
-                    if (data?.image_uris?.normal) return [data.image_uris.normal];
+                // 3. Try Exact Name Match
+                const exactUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`;
+                try {
+                    console.log(`Attempting exact match for: "${cardName}" at ${exactUrl}`);
+                    const response = await fetch(exactUrl);
+                    if (response.ok) {
+                        const data = await response.json();
+                         const uris = getImageUris(data);
+                         if (uris.length > 0) {
+                             if (specificPrintFailed) {
+                                 // Add a note if we fell back from a specific print failure
+                                 return { uris, fallbackNote: `Specific print not found, using default "${data.name}".` };
+                             }
+                             return uris;
+                         }
+                        // Continue to fuzzy if exact found but no image
+                    } else if (response.status !== 404) { // Only throw non-404 errors
+                         throw new Error(`Scryfall API error: ${response.status} (Exact) for "${cardName}"`);
+                    }
+                } catch (error) {
+                    console.warn(`Exact match attempt failed for "${cardName}":`, error.message);
+                    // Don't throw yet, try fuzzy
+                }
 
-                    // If no suitable image found even if card data exists
-                    throw new Error(`No suitable image found for card: ${data?.name || cardName}`);
+                // 4. Try Fuzzy Name Match
+                const fuzzyUrl = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`;
+                try {
+                    console.log(`Attempting fuzzy match for: "${cardName}" at ${fuzzyUrl}`);
+                    const response = await fetch(fuzzyUrl);
+                     if (!response.ok) {
+                         // If fuzzy also fails, throw the error
+                         throw new Error(`Scryfall API error: ${response.status} (Fuzzy) for "${cardName}"`);
+                     }
+                    const data = await response.json();
+                    const uris = getImageUris(data);
+                    if (uris.length > 0) {
+                        if (specificPrintFailed) {
+                            return { uris, fallbackNote: `Specific print not found, using fuzzy match "${data.name}".` };
+                        }
+                         return uris;
+                    }
+                    // If fuzzy found but no image
+                    throw new Error(`No suitable image found for card (fuzzy match: ${data?.name || cardName})`);
 
                 } catch (error) {
-                    console.error(`Error fetching card image for "${cardName}":`, error);
-                    // Re-throw a cleaned-up error message
-                    throw new Error(error.message.includes('Scryfall API error') ? error.message : `Failed to fetch "${cardName}": ${error.message}`);
+                     console.error(`Error fetching card image for "${cardName}":`, error);
+                     // Re-throw a cleaned-up error message
+                     const baseMessage = specificPrintFailed ? `Specific print request failed, and name search also failed for "${cardName}"` : `Failed to find card "${cardName}"`;
+                     throw new Error(`${baseMessage}: ${error.message.includes('Scryfall API error') ? error.message : 'Not found or image unavailable.'}`);
                 }
             };
 
@@ -318,20 +401,21 @@
             const handleGenerate = async () => {
                 if (!textAreaRef.current) return;
 
-                const lines = textAreaRef.current.value
+                const rawLines = textAreaRef.current.value
                     .split('\n')
                     .map(line => line.trim())
                     .filter(line => line !== '');
 
-                if (lines.length === 0) {
+                if (rawLines.length === 0) {
                     setGenerationError("Please enter at least one card name.");
                     return;
                 }
 
                 setIsGenerating(true);
                 setGenerationError(null);
+                setPdfBuildNotification(false);
                 let processedLines = 0;
-                const totalLines = lines.length;
+                const totalLines = rawLines.length;
 
                 // Reset progress bar
                 if (progressBarRef.current && progressPercentageRef.current) {
@@ -339,7 +423,6 @@
                     progressPercentageRef.current.textContent = '0%';
                 }
 
-                // Dynamically load jsPDF
                 const loadJsPDF = () => new Promise((resolve, reject) => {
                     if (typeof window === 'undefined') return reject(new Error('Not in browser'));
                     if (typeof window.jspdf?.jsPDF !== 'undefined') return resolve(window.jspdf.jsPDF);
@@ -352,82 +435,124 @@
                 });
 
                 try {
-                    const cardData = []; // { url: string, quantity: number }[]  <- now array of urls
+                    const cardFetchPromises = [];
                     const errors = [];
+                    const warnings = []; // For non-fatal issues like fallback prints
 
-                    // 1. Fetch card data
-                    for (const line of lines) {
+                    // 1. Parse Input and Initiate Fetches
+                    for (const line of rawLines) {
+                        let inputLine = line;
                         let cardName = line;
                         let quantity = 1;
-                        const match = line.match(/^(?:(\d+)\s*x?\s*(.+?)|(.+?)\s*x?(\d+))$/i);
-                        if (match) {
-                            quantity = parseInt(match[1] || match[4], 10);
-                            cardName = (match[2] || match[3]).trim();
+                        let setCode = null;
+                        let collectorNumber = null;
+
+                        // Check for specific print format: Card Name (SET, NUM)
+                        const printMatch = line.match(/^(.*?)\s*\(([^,]+),\s*([^)]+)\)\s*$/);
+                        if (printMatch) {
+                            cardName = printMatch[1].trim();
+                            setCode = printMatch[2].trim().toLowerCase(); // Scryfall uses lowercase set codes
+                            collectorNumber = printMatch[3].trim();
+                            inputLine = cardName; // Use the base name for quantity parsing now
                         }
+
+                        // Check for quantity: [num] [name] or [name] [x][num]
+                        const quantityMatch = inputLine.match(/^(?:(\d+)\s*x?\s*(.+?)|(.+?)\s*x?(\d+))$/i);
+                        if (quantityMatch) {
+                            quantity = parseInt(quantityMatch[1] || quantityMatch[4], 10);
+                            cardName = (quantityMatch[2] || quantityMatch[3]).trim();
+                        } else {
+                            cardName = inputLine.trim(); // Use the (potentially modified) name if no quantity found
+                        }
+
                         if (isNaN(quantity) || quantity < 1) quantity = 1;
 
-                        try {
-                            const imageUrls = await fetchCardImage(cardName); // Now gets array
-                            imageUrls.forEach(url => {
-                                cardData.push({ url: url, quantity: quantity });  // Add each face
-                            })
+                        // Add fetch promise
+                        cardFetchPromises.push(
+                            fetchCardImage(cardName, setCode, collectorNumber)
+                                .then(result => {
+                                    let uris;
+                                    let fallbackNote = null;
+                                    // Check if result is an object with uris and fallbackNote
+                                    if (typeof result === 'object' && result !== null && Array.isArray(result.uris)) {
+                                        uris = result.uris;
+                                        fallbackNote = result.fallbackNote;
+                                    } else if (Array.isArray(result)) {
+                                        uris = result; // It's just an array of URIs
+                                    } else {
+                                        throw new Error("Invalid result format from fetchCardImage");
+                                    }
 
-                        } catch (error) {
-                            errors.push(error.message); // Collect fetch errors
-                        }
+                                    if (fallbackNote) {
+                                        warnings.push(fallbackNote);
+                                    }
+                                    return uris.map(url => ({ url, quantity, originalInput: line }));
+                                })
+                                .catch(error => {
+                                    errors.push(`Error for "${line}": ${error.message}`);
+                                    return []; // Return empty array on error for this line
+                                })
+                                .finally(() => {
+                                    processedLines++;
+                                    if (progressBarRef.current && progressPercentageRef.current) {
+                                        const percentage = Math.round((processedLines / totalLines) * 100);
+                                        progressBarRef.current.style.width = `${percentage}%`;
+                                        progressPercentageRef.current.textContent = `${percentage}%`;
+                                    }
+                                })
+                        );
+                    } // End parsing loop
 
-                        processedLines++;
-                        if (progressBarRef.current && progressPercentageRef.current) {
-                            const percentage = Math.round((processedLines / totalLines) * 100);
-                            progressBarRef.current.style.width = `${percentage}%`;
-                            progressPercentageRef.current.textContent = `${percentage}%`;
-                        }
+                    // 2. Await all fetches and collect results
+                    const results = await Promise.all(cardFetchPromises);
+                    const cardData = results.flat(); // Flatten the array of arrays
+
+                    if (cardData.length === 0 && errors.length > 0) {
+                         setGenerationError(`No card images could be fetched.\n${errors.join('\n')}`);
+                         setIsGenerating(false);
+                         return;
+                    }
+                    if (cardData.length === 0 && errors.length === 0) {
+                         setGenerationError("No valid card inputs found or processed.");
+                         setIsGenerating(false);
+                         return;
                     }
 
-                    if (cardData.length === 0) {
-                        setGenerationError(`No card images could be fetched.\n${errors.join('\n')}`);
-                        setIsGenerating(false);
-                        return;
-                    }
 
-                    // 2. Load jsPDF and initialize document
+                    // Set notification
+                    setPdfBuildNotification(true);
+
+                    // 3. Load jsPDF and initialize document
                     const jsPDF = await loadJsPDF();
                     const doc = new jsPDF({ orientation: 'portrait', unit: 'in', format: 'letter' });
 
-                    // --- PDF Layout Constants (Updated with 5mm margin/gap) ---
+                    // --- PDF Layout Constants ---
                     const mmToIn = (mm) => mm / 25.4;
                     const cardWidthIn = 2.5;
                     const cardHeightIn = 3.5;
                     const cardsPerRow = 3;
-                    const cardsPerCol = 3; // Still aiming for 3x3
+                    const cardsPerCol = 3;
                     const totalCardsPerPage = cardsPerRow * cardsPerCol;
                     const pageW = doc.internal.pageSize.getWidth(); // 8.5 in
                     const pageH = doc.internal.pageSize.getHeight(); // 11 in
-
-                    // ** NEW: 5mm margin and 5mm gap **
-                    const marginIn = mmToIn(3); // ~0.197 in
-                    const gapIn = mmToIn(3);     // ~0.197 in
-
-                    // Check if layout fits (it should now)
+                    const marginIn = mmToIn(3); // ~0.12 in
+                    const gapIn = mmToIn(3);     // ~0.12 in
                     const requiredWidth = marginIn * 2 + cardsPerRow * cardWidthIn + (cardsPerRow - 1) * gapIn;
                     const requiredHeight = marginIn * 2 + cardsPerCol * cardHeightIn + (cardsPerCol - 1) * gapIn;
-                    console.log(`Required PDF dimensions: ${requiredWidth.toFixed(2)}in x ${requiredHeight.toFixed(2)}in`);
-                    console.log(`Page dimensions: ${pageW.toFixed(2)}in x ${pageH.toFixed(2)}in`);
+
                     if (requiredWidth > pageW || requiredHeight > pageH) {
-                        console.warn("Calculated layout might exceed page size slightly. Adjusting...");
-                        // Optional: Add logic here to reduce gaps/margins further if needed,
-                        // or switch to fewer cards per page if it drastically exceeds limits.
+                        console.warn("Calculated layout might exceed page size. Consider smaller margins/gaps or fewer cards per page.");
+                        errors.push("Warning: Card layout might slightly exceed page boundaries.");
                     }
 
-
-                    let currentX = marginIn; // Start at left margin
-                    let currentY = marginIn; // Start at top margin
+                    let currentX = marginIn;
+                    let currentY = marginIn;
                     let cardsOnCurrentPage = 0;
                     let totalCardsAddedToPdf = 0;
 
-                    // 3. Add Images to PDF
+                    // 4. Add Images to PDF
                     for (const card of cardData) {
-                        for (let j = 0; j < card.quantity; j++) {
+                         for (let j = 0; j < card.quantity; j++) {
                             if (cardsOnCurrentPage >= totalCardsPerPage) {
                                 doc.addPage();
                                 currentX = marginIn;
@@ -436,8 +561,8 @@
                             }
 
                             try {
-                                const imageResponse = await fetch(card.url);
-                                if (!imageResponse.ok) throw new Error(`HTTP ${imageResponse.status}`);
+                                const imageResponse = await fetch(card.url); // Fetch image data
+                                if (!imageResponse.ok) throw new Error(`HTTP ${imageResponse.status} fetching image`);
                                 const imageBlob = await imageResponse.blob();
                                 const imageDataUrl = await new Promise((resolve, reject) => {
                                     const reader = new FileReader();
@@ -445,34 +570,42 @@
                                     reader.onerror = reject;
                                     reader.readAsDataURL(imageBlob);
                                 });
-                                const imageType = card.url.toUpperCase().includes('PNG') ? 'PNG' : 'JPEG';
+                                const imageType = imageBlob.type.split('/')[1]?.toUpperCase() || (card.url.toUpperCase().includes('PNG') ? 'PNG' : 'JPEG'); // Determine type
 
                                 doc.addImage(imageDataUrl, imageType, currentX, currentY, cardWidthIn, cardHeightIn);
                                 cardsOnCurrentPage++;
                                 totalCardsAddedToPdf++;
 
-                                // Move to next position (right, then down)
+                                // Move to next position
                                 currentX += cardWidthIn + gapIn;
-                                if (cardsOnCurrentPage % cardsPerRow === 0) { // End of a row
-                                    currentX = marginIn; // Reset X
-                                    currentY += cardHeightIn + gapIn; // Move down
+                                if (cardsOnCurrentPage % cardsPerRow === 0) {
+                                    currentX = marginIn;
+                                    currentY += cardHeightIn + gapIn;
                                 }
-                            } catch (error) {
-                                console.error(`Error adding image ${card.url} to PDF:`, error);
-                                errors.push(`Error adding image for ${card.url.split('/').pop()}: ${error.message}`);
+                             } catch (error) {
+                                console.error(`Error adding image ${card.url} (from input "${card.originalInput}") to PDF:`, error);
+                                errors.push(`Error adding image for ${card.originalInput}: ${error.message}`);
                             }
                         }
                     }
 
-                    // 4. Finalize and Save
-                    if (errors.length > 0) {
-                        setGenerationError(`PDF generated, but with issues:\n${errors.join('\n')}`);
+                    // 5. Finalize and Save
+                    let finalMessage = "";
+                    if(warnings.length > 0){
+                        finalMessage += `Notes:\n${warnings.join('\n')}\n\n`;
                     }
+                     if (errors.length > 0) {
+                         finalMessage += `PDF generated with ${totalCardsAddedToPdf} cards, but encountered issues:\n${errors.join('\n')}`;
+                         setGenerationError(finalMessage); // Set as error if issues occurred
+                    } else if (warnings.length > 0) {
+                        setGenerationError(finalMessage); // Show warnings even if no fatal errors
+                    }
+
 
                     if (totalCardsAddedToPdf > 0) {
                         doc.save('mtg-proxies.pdf');
-                    } else if (errors.length === 0) {
-                        setGenerationError("No cards were generated. Please check your input list.");
+                    } else if (errors.length === 0 && warnings.length === 0) { // Only show this if no other messages
+                        setGenerationError("No cards were ultimately added to the PDF. Please check your input list and potential errors above.");
                     }
 
                 } catch (error) {
@@ -480,34 +613,36 @@
                     setGenerationError(`Fatal Error: ${error.message || "An unexpected error occurred during PDF generation."}`);
                 } finally {
                     setIsGenerating(false);
+                    setPdfBuildNotification(false);
                 }
             }; // End handleGenerate
 
             // --- Render JSX ---
             return (
                 <div className="min-h-screen bg-primary flex flex-col items-center p-4 md:p-6 font-sans w-full">
-                    {/* Constrain content width and center it */}
                     <div className="w-full max-w-2xl mx-auto flex flex-col items-center">
 
-                        {/* Title */}
                         <h1 className="text-2xl font-semibold text-primary mb-6 mt-4">
                             MTG Proxy Generator
                         </h1>
 
-                        {/* Text Input Area */}
                         <textarea
-                            className="w-full max-w-md custom-textarea mb-4 resize-none" // Use custom class, disable resize
-                            placeholder="Enter card names, one per line...&#10;Examples:&#10;4 Sol Ring&#10;Island x8&#10;Ragavan, Nimble Pilferer"
+                            className="w-full max-w-md custom-textarea mb-4 resize-none"
+                            placeholder="Enter card names, one per line...
+Examples:
+4 Sol Ring
+Island x8
+Ragavan, Nimble Pilferer
+Black Lotus (Vintage Campionship, 2017NA)"
                             ref={textAreaRef}
                             disabled={isGenerating}
-                            rows="8" // Suggest a starting height
+                            rows="8"
                         />
 
-                        {/* Progress Bar Section */}
-                        <div className="w-full max-w-md flex items-center mb-4 px-1"> {/* Added slight padding */}
-                            <div className="progress-container flex-grow h-3 mr-2"> {/* Use custom class */}
+                        <div className="w-full max-w-md flex items-center mb-4 px-1">
+                            <div className="progress-container flex-grow h-3 mr-2">
                                 <div
-                                    className="progress-bar" // Use custom class
+                                    className="progress-bar"
                                     style={{ width: '0%' }}
                                     ref={progressBarRef}
                                 />
@@ -517,36 +652,41 @@
                             </span>
                         </div>
 
-                        {/* Separator */}
-                        <hr className="w-full max-w-md separator mb-6" /> {/* Use custom class */}
+                         {pdfBuildNotification && (
+                            <div className="success-message">
+                                Building the PDF, this might take a while for many cards...
+                            </div>
+                        )}
 
-                        {/* Button and Info Section */}
+                        <hr className="w-full max-w-md separator mb-6" />
+
                         <div className="w-full max-w-md flex items-center justify-center mb-6">
-                            {/* Generate Button */}
                             <button
-                                className="custom-button mr-2" // Use custom class
+                                className="custom-button mr-2"
                                 onClick={handleGenerate}
                                 disabled={isGenerating}
                             >
                                 {isGenerating ? 'Generating...' : 'Generate Proxies'}
                             </button>
 
-                            {/* Info Icon and Tooltip Trigger */}
                             <div
                                 className="relative cursor-pointer ml-2"
                                 onMouseEnter={handleInfoMouseEnter}
                                 onMouseLeave={handleInfoMouseLeave}
                             >
-                                {/* SVG Info Icon */}
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 info-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    <path strokeLinecap="round" strokeLinejoinm="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                {/* Tooltip Content */}
                                 {showInfoDiv && (
-                                    <div className="absolute tooltip z-10" style={{ top: '100%', right: 0 }}> {/* Use custom class */}
+                                    <div className="absolute tooltip z-10" style={{ top: '100%', right: 0 }}>
                                         <p className="font-semibold text-primary mb-1">Input Format:</p>
                                         <p className="mb-2">
-                                            Enter one card per line. Specify quantities like "4 Card Name", "Card Name x4", or "Card Name 4". Fuzzy matching used if exact name fails.
+                                            Enter one card per line. Specify quantities like "4 Card Name", "Card Name x4", or "Card Name 4".
+                                            Use "Random" for a random card. Fuzzy matching used if exact name fails.
+                                        </p>
+                                         <p className="font-semibold text-primary mb-1">Specify Print:</p>
+                                        <p className="mb-2">
+                                            Add Set name and Collector Number in parentheses: `Card Name (SET, NUM)`. you can find these in each card's page on <a href="https://scryfall.com">Scryfall</a>
                                         </p>
                                         <p className="font-semibold text-primary mb-1">Examples:</p>
                                         <ul className="list-disc list-inside">
@@ -555,21 +695,24 @@
                                             <li>Mountain x8</li>
                                             <li>Island 6</li>
                                             <li>Ragavan // Nimble Pilferer</li>
+                                            <li>Black Lotus (Vintage Campionship, 2017NA)</li>
+                                            <li>Random x5</li>
                                         </ul>
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* Error Message Area */}
-                        {generationError && (
-                            <div className="error-message"> {/* Use custom class */}
-                                <strong>Error:</strong><br/>
+                         {generationError && (
+                            <div className="error-message"> {/* Use class for consistent styling */}
+                                {/* Check if the message contains "Error:" or "Notes:" prefix already */}
+                                {!(generationError.startsWith("Error:") || generationError.startsWith("Notes:")) && <strong>Error:</strong>}
+                                <br/>
                                 {generationError}
                             </div>
                         )}
                     </div>
-                </div> // End of main container
+                </div>
             );
         }; // End of MTGProxyGenerator component
 
