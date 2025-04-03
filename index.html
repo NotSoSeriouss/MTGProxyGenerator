@@ -27,6 +27,9 @@
             --success-bg: #166534;
             --success-border: #16a34a;
             --success-text: #bbfa9f;
+            --warning-bg: #422006; /* Dark Orange */
+            --warning-border: #d97706; /* Amber */
+            --warning-text: #fde68a; /* Light Yellow */
             --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
             --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
             --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
@@ -190,7 +193,7 @@
             color: var(--text-secondary);
             border-radius: var(--border-radius-md);
             box-shadow: var(--shadow-lg);
-            width: 20rem; /* Increased width slightly */
+            width: 22rem; /* Increased width */
             padding: 0.75rem; /* p-3 */
             margin-top: 0.5rem; /* mt-2 */
         }
@@ -204,35 +207,38 @@
             margin-bottom: 0.25rem;
         }
 
-        /* Error Message */
-        .error-message {
+        /* Status Message Area (Combined Error/Warning/Success) */
+        .status-message-container {
+             margin-top: 1rem; /* mt-4 */
+             max-width: 28rem; /* max-w-md */
+             width: 100%;
+        }
+        .status-message {
+            border-radius: var(--border-radius-md);
+            padding: 0.75rem; /* p-3 */
+            margin-bottom: 0.5rem; /* Space between multiple messages */
+            white-space: pre-wrap;
+            font-size: 0.875rem; /* text-sm */
+        }
+        .status-message.error {
             background-color: var(--error-bg);
             border: 1px solid var(--error-border);
             color: var(--error-text);
-            border-radius: var(--border-radius-md);
-            padding: 0.75rem; /* p-3 */
-            margin-top: 1rem; /* mt-4 */
-            max-width: 28rem; /* max-w-md */
-            width: 100%;
-            white-space: pre-wrap;
-            font-size: 0.875rem; /* text-sm */
         }
-        .error-message strong {
-            color: var(--text-primary); /* Make "Error:" stand out more */
+         .status-message.warning {
+            background-color: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            color: var(--warning-text);
         }
-
-        /* Success Message */
-        .success-message {
+         .status-message.success { /* For PDF build notification */
             background-color: var(--success-bg);
             border: 1px solid var(--success-border);
             color: var(--success-text);
-            border-radius: var(--border-radius-md);
-            padding: 0.75rem; /* p-3 */
-            margin-top: 1rem; /* mt-4 */
-            max-w-28rem; /* max-w-md */
-            width: 100%;
-            white-space: pre-wrap;
-            font-size: 0.875rem; /* text-sm */
+         }
+        .status-message strong {
+            color: var(--text-primary); /* Make prefix stand out */
+            display: block; /* Ensure prefix is on its own line */
+            margin-bottom: 0.25rem;
         }
 
         /* Separator */
@@ -257,8 +263,8 @@
             const progressBarRef = useRef(null);
             const progressPercentageRef = useRef(null);
             const [isGenerating, setIsGenerating] = useState(false);
-            const [generationError, setGenerationError] = useState(null);
-            const [pdfBuildNotification, setPdfBuildNotification] = useState(false);
+            const [statusMessages, setStatusMessages] = useState([]); // { type: 'error'|'warning'|'success', message: string }[]
+            const [pdfBuildNotificationVisible, setPdfBuildNotificationVisible] = useState(false);
 
             // --- Effects ---
             useEffect(() => {
@@ -268,6 +274,11 @@
                     }
                 };
             }, []);
+
+             // --- Helper: Add Status Message ---
+            const addStatusMessage = (type, message) => {
+                setStatusMessages(prev => [...prev, { type, message }]);
+            };
 
             // --- Event Handlers ---
             const handleInfoMouseEnter = () => {
@@ -285,117 +296,183 @@
             // --- Helper Functions ---
 
             // Helper to get image URIs from Scryfall data (handles single and double faced)
-            const getImageUris = (data) => {
+            const getImageUris = (cardData) => {
                 const uris = [];
-                if (data?.card_faces) {
-                     data.card_faces.forEach(face => {
+                if (cardData?.card_faces) {
+                     cardData.card_faces.forEach(face => {
                         if(face?.image_uris?.png) uris.push(face.image_uris.png);
                         else if(face?.image_uris?.large) uris.push(face.image_uris.large);
                         else if(face?.image_uris?.normal) uris.push(face.image_uris.normal);
                     });
                 } else {
-                    if (data?.image_uris?.png) uris.push(data.image_uris.png);
-                    else if (data?.image_uris?.large) uris.push(data.image_uris.large);
-                    else if (data?.image_uris?.normal) uris.push(data.image_uris.normal);
+                    if (cardData?.image_uris?.png) uris.push(cardData.image_uris.png);
+                    else if (cardData?.image_uris?.large) uris.push(cardData.image_uris.large);
+                    else if (cardData?.image_uris?.normal) uris.push(cardData.image_uris.normal);
                 }
-                return uris.filter(url => url !== undefined); // Remove undefineds
+                 // Filter out potential undefined entries if no image exists for a face
+                return uris.filter(url => url);
             };
+
+             // Helper: Safely fetch JSON from a URL
+            const safeFetchJson = async (url, context) => {
+                 try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        const errorBody = await response.text(); // Try to get more details
+                        console.error(`Scryfall API Error (${context}): ${response.status} ${response.statusText} for ${url}`, errorBody);
+                        // Try parsing Scryfall's error JSON if possible
+                        try {
+                           const errJson = JSON.parse(errorBody);
+                           if(errJson.details) throw new Error(`${response.status} ${response.statusText}: ${errJson.details}`);
+                        } catch (parseError) { /* Ignore if error body isn't JSON */ }
+                         // Generic error if parsing failed or no details
+                        throw new Error(`${response.status} ${response.statusText}`);
+                    }
+                    return await response.json();
+                 } catch (error) {
+                     // Catch fetch errors (network issues) and re-throw with context
+                     console.error(`Network or fetch error (${context}) for ${url}:`, error);
+                     throw new Error(`Network error during ${context}: ${error.message}`);
+                 }
+             };
+
 
             // Fetch card image URL(s) from Scryfall API
-            const fetchCardImage = async (cardName, setCode = null, collectorNumber = null) => {
-                let specificPrintFailed = false; // Flag to track if specific print fetch failed
+            const fetchCardImage = async (cardName, setCode = null, collectorNumber = null, originalInput = "") => {
+                let specificPrintFailed = false;
+                let fallbackNote = null;
+                let foundData = null; // To store card data if found
 
-                // 1. Try Specific Print if specified
+                 // --- Priority 1: Specific Set + Collector Number ---
                 if (setCode && collectorNumber) {
-                    const specificUrl = `https://api.scryfall.com/cards/${encodeURIComponent(setCode)}/${encodeURIComponent(collectorNumber)}`;
+                    const specificUrl = `https://api.scryfall.com/cards/${encodeURIComponent(setCode.toLowerCase())}/${encodeURIComponent(collectorNumber)}`;
                     try {
-                        console.log(`Attempting fetch for specific print: ${cardName} (${setCode}, ${collectorNumber}) at ${specificUrl}`);
-                        const response = await fetch(specificUrl);
-                        if (!response.ok) {
-                             throw new Error(`Scryfall API error: ${response.status} (${response.statusText}) for ${setCode}/${collectorNumber}`);
-                        }
-                        const data = await response.json();
-                        const uris = getImageUris(data);
+                        console.log(`Attempting fetch specific print: ${originalInput} at ${specificUrl}`);
+                        foundData = await safeFetchJson(specificUrl, `Specific Print ${setCode}/${collectorNumber}`);
+                        const uris = getImageUris(foundData);
                         if (uris.length > 0) {
-                            console.log(`Found specific print: ${data.name} (${data.set}, ${data.collector_number})`);
-                            return uris;
+                            console.log(`Found specific print: ${foundData.name} (${foundData.set.toUpperCase()}, ${foundData.collector_number})`);
+                            return { uris, fallbackNote: null }; // Success
+                        } else {
+                             throw new Error(`No image URIs found for ${setCode}/${collectorNumber}, though card data exists.`);
                         }
-                         throw new Error(`No suitable image found for specific print ${setCode}/${collectorNumber}`);
                     } catch (error) {
-                        console.warn(`Specific print fetch failed for "${cardName} (${setCode}, ${collectorNumber})":`, error.message);
-                        specificPrintFailed = true; // Mark failure and fall through to name search
+                        console.warn(`Specific print fetch (${setCode}/${collectorNumber}) failed for "${originalInput}": ${error.message}. Falling back to name search.`);
+                        specificPrintFailed = true;
+                        fallbackNote = `Specific print (${setCode}/${collectorNumber}) not found or lacks image.`;
+                        // Don't return yet, fall through to name/set search
                     }
                 }
 
-                // 2. Handle "Random" keyword
-                if (cardName.toLowerCase() === 'random') {
-                    const randomUrl = 'https://api.scryfall.com/cards/random';
+                 // --- Priority 2: Search by Name (and potentially filter by Set Code if provided without Number) ---
+                let baseCardData = null;
+                let printsSearchUri = null;
+
+                // Try Exact Name first
+                try {
+                    console.log(`Attempting exact name match for: "${cardName}" (related to input: "${originalInput}")`);
+                    const exactUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`;
+                    baseCardData = await safeFetchJson(exactUrl, `Exact Name "${cardName}"`);
+                    printsSearchUri = baseCardData?.prints_search_uri; // Get prints URI if successful
+                } catch (error) {
+                     // Only log non-404 errors here, 404 is expected if exact match fails
+                    if (!error.message.includes("404")) {
+                        console.warn(`Exact name match failed unexpectedly for "${cardName}": ${error.message}`);
+                    }
+                    // Continue to fuzzy search
+                }
+
+                 // Try Fuzzy Name if Exact failed or didn't yield data
+                if (!baseCardData) {
                     try {
-                        const response = await fetch(randomUrl);
-                        if (!response.ok) {
-                            throw new Error(`Scryfall API error: ${response.status} (Random)`);
-                        }
-                        const data = await response.json();
-                        const uris = getImageUris(data);
-                         if (uris.length > 0) return uris;
-                        throw new Error(`No suitable image found for random card`);
+                        console.log(`Attempting fuzzy name match for: "${cardName}" (related to input: "${originalInput}")`);
+                        const fuzzyUrl = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`;
+                        baseCardData = await safeFetchJson(fuzzyUrl, `Fuzzy Name "${cardName}"`);
+                         printsSearchUri = baseCardData?.prints_search_uri;
                     } catch (error) {
-                        console.error(`Error fetching random card:`, error);
-                        throw new Error(`Failed to fetch random card: ${error.message}`);
+                        // If fuzzy also fails, this is likely a fatal error for this card lookup
+                        console.error(`Fuzzy name match failed for "${cardName}": ${error.message}`);
+                        // Combine specific print failure note if applicable
+                        const message = specificPrintFailed
+                            ? `${fallbackNote} Additionally, failed to find card by name "${cardName}".`
+                            : `Failed to find card "${cardName}" by exact or fuzzy match: ${error.message}`;
+                         throw new Error(message);
                     }
                 }
 
-                // 3. Try Exact Name Match
-                const exactUrl = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`;
-                try {
-                    console.log(`Attempting exact match for: "${cardName}" at ${exactUrl}`);
-                    const response = await fetch(exactUrl);
-                    if (response.ok) {
-                        const data = await response.json();
-                         const uris = getImageUris(data);
-                         if (uris.length > 0) {
-                             if (specificPrintFailed) {
-                                 // Add a note if we fell back from a specific print failure
-                                 return { uris, fallbackNote: `Specific print not found, using default "${data.name}".` };
-                             }
-                             return uris;
-                         }
-                        // Continue to fuzzy if exact found but no image
-                    } else if (response.status !== 404) { // Only throw non-404 errors
-                         throw new Error(`Scryfall API error: ${response.status} (Exact) for "${cardName}"`);
-                    }
-                } catch (error) {
-                    console.warn(`Exact match attempt failed for "${cardName}":`, error.message);
-                    // Don't throw yet, try fuzzy
-                }
+                 // --- Priority 2b: Filter Prints by Set Code (if setCode provided WITHOUT collectorNumber) ---
+                if (setCode && !collectorNumber && printsSearchUri) {
+                     try {
+                        console.log(`Fetching prints for "${baseCardData.name}" from ${printsSearchUri} to find set "${setCode}"`);
+                        const printsData = await safeFetchJson(printsSearchUri, `Prints Search for "${baseCardData.name}"`);
 
-                // 4. Try Fuzzy Name Match
-                const fuzzyUrl = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`;
-                try {
-                    console.log(`Attempting fuzzy match for: "${cardName}" at ${fuzzyUrl}`);
-                    const response = await fetch(fuzzyUrl);
-                     if (!response.ok) {
-                         // If fuzzy also fails, throw the error
-                         throw new Error(`Scryfall API error: ${response.status} (Fuzzy) for "${cardName}"`);
-                     }
-                    const data = await response.json();
-                    const uris = getImageUris(data);
-                    if (uris.length > 0) {
-                        if (specificPrintFailed) {
-                            return { uris, fallbackNote: `Specific print not found, using fuzzy match "${data.name}".` };
+                        // Find the first print matching the set code (case-insensitive)
+                        const matchedPrint = printsData?.data?.find(
+                            print => print.set.toLowerCase() === setCode.toLowerCase()
+                        );
+
+                        if (matchedPrint) {
+                            console.log(`Found print in set "${setCode}": ${matchedPrint.name} (${matchedPrint.set.toUpperCase()}, ${matchedPrint.collector_number})`);
+                            foundData = matchedPrint; // Use this specific print's data
+                            const uris = getImageUris(foundData);
+                            if (uris.length > 0) {
+                                return { uris, fallbackNote: null }; // Success! Found by set code only.
+                            } else {
+                                // Found print but no image, this is strange. Fallback.
+                                console.warn(`Found print for ${cardName} in set ${setCode}, but it has no image URI. Falling back.`);
+                                if (!fallbackNote) fallbackNote = ""; // Ensure fallbackNote exists
+                                fallbackNote += ` Print in set ${setCode} found but lacks image.`;
+                                specificPrintFailed = true; // Mark as failed to force using the base card image
+                            }
+                        } else {
+                            console.warn(`Could not find print for "${cardName}" in set "${setCode}". Falling back to default print.`);
+                             if (!fallbackNote) fallbackNote = "";
+                            fallbackNote += ` Print in set "${setCode}" not found.`;
+                            specificPrintFailed = true; // Mark as failed to force using the base card image
                         }
-                         return uris;
-                    }
-                    // If fuzzy found but no image
-                    throw new Error(`No suitable image found for card (fuzzy match: ${data?.name || cardName})`);
+                     } catch (error) {
+                         console.warn(`Error fetching or processing prints for "${cardName}" (Set: ${setCode}): ${error.message}. Falling back.`);
+                         if (!fallbackNote) fallbackNote = "";
+                         fallbackNote += ` Error searching prints for set "${setCode}".`;
+                         specificPrintFailed = true;
+                     }
+                 }
 
-                } catch (error) {
-                     console.error(`Error fetching card image for "${cardName}":`, error);
-                     // Re-throw a cleaned-up error message
-                     const baseMessage = specificPrintFailed ? `Specific print request failed, and name search also failed for "${cardName}"` : `Failed to find card "${cardName}"`;
-                     throw new Error(`${baseMessage}: ${error.message.includes('Scryfall API error') ? error.message : 'Not found or image unavailable.'}`);
+                 // --- Priority 3: Use Base Card Data (from Name search or if Set search failed/wasn't applicable) ---
+                if (baseCardData && !foundData) { // Only use if we haven't already found a specific print
+                    foundData = baseCardData; // Use the data found via name search
+                    console.log(`Using image for "${foundData.name}" (default print or fallback). Set: ${foundData.set.toUpperCase()}, Number: ${foundData.collector_number}`);
+                    if (specificPrintFailed && !fallbackNote?.includes("Falling back")) {
+                        // Add specific fallback message if not already present
+                        fallbackNote += ` Falling back to default print: ${foundData.name} (${foundData.set.toUpperCase()}, ${foundData.collector_number}).`;
+                    }
+                 }
+
+                 // --- Final Result ---
+                if (foundData) {
+                    const uris = getImageUris(foundData);
+                    if (uris.length > 0) {
+                        return { uris, fallbackNote };
+                    } else {
+                         // If we got here, even the fallback card has no image
+                        const message = `Found card data for "${foundData.name}" but no suitable image URI was available.`;
+                        console.error(message);
+                        throw new Error(message);
+                    }
+                } else {
+                    // Should ideally be caught earlier, but as a safeguard
+                    const message = specificPrintFailed
+                        ? `${fallbackNote} And ultimately could not resolve to any card image for "${originalInput}".`
+                        : `Could not resolve "${originalInput}" to any card image.`;
+                     throw new Error(message);
                 }
+
+
+                 // --- Handle "Random" --- (Should be parsed in handleGenerate now)
+                 // Keeping this structure just in case, but it shouldn't be reached if parsing is correct.
+                // if (cardName.toLowerCase() === 'random') { ... }
             };
+
 
             // --- PDF Generation ---
             const handleGenerate = async () => {
@@ -407,23 +484,23 @@
                     .filter(line => line !== '');
 
                 if (rawLines.length === 0) {
-                    setGenerationError("Please enter at least one card name.");
+                    setStatusMessages([{ type: 'error', message: 'Please enter at least one card name.' }]);
                     return;
                 }
 
                 setIsGenerating(true);
-                setGenerationError(null);
-                setPdfBuildNotification(false);
-                let processedLines = 0;
+                setStatusMessages([]); // Clear previous messages
+                setPdfBuildNotificationVisible(false);
+                let processedLineCount = 0;
                 const totalLines = rawLines.length;
 
-                // Reset progress bar
                 if (progressBarRef.current && progressPercentageRef.current) {
                     progressBarRef.current.style.width = '0%';
                     progressPercentageRef.current.textContent = '0%';
                 }
 
                 const loadJsPDF = () => new Promise((resolve, reject) => {
+                    // ... (jsPDF loading logic - unchanged) ...
                     if (typeof window === 'undefined') return reject(new Error('Not in browser'));
                     if (typeof window.jspdf?.jsPDF !== 'undefined') return resolve(window.jspdf.jsPDF);
                     const script = document.createElement('script');
@@ -436,97 +513,142 @@
 
                 try {
                     const cardFetchPromises = [];
-                    const errors = [];
-                    const warnings = []; // For non-fatal issues like fallback prints
 
                     // 1. Parse Input and Initiate Fetches
                     for (const line of rawLines) {
-                        let inputLine = line;
-                        let cardName = line;
+                        let remainingLine = line;
+                        let cardName = "";
                         let quantity = 1;
                         let setCode = null;
                         let collectorNumber = null;
+                        let isRandom = false;
 
-                        // Check for specific print format: Card Name (SET, NUM)
-                        const printMatch = line.match(/^(.*?)\s*\(([^,]+),\s*([^)]+)\)\s*$/);
-                        if (printMatch) {
-                            cardName = printMatch[1].trim();
-                            setCode = printMatch[2].trim().toLowerCase(); // Scryfall uses lowercase set codes
-                            collectorNumber = printMatch[3].trim();
-                            inputLine = cardName; // Use the base name for quantity parsing now
+                        // A. Check for specific print format: (SET, NUM) or (SET) at the end
+                        const printMatchFull = remainingLine.match(/^(.*?)\s*\(([^,]+?)\s*,\s*([^)]+?)\)\s*$/i);
+                        const printMatchSetOnly = remainingLine.match(/^(.*?)\s*\(([^),]+?)\)\s*$/i); // Ensure no comma inside for set-only
+
+                        if (printMatchFull) {
+                            remainingLine = printMatchFull[1].trim();
+                            setCode = printMatchFull[2].trim();
+                            collectorNumber = printMatchFull[3].trim();
+                             console.log(`Parsed Set/Num: [${setCode}, ${collectorNumber}] from "${line}"`);
+                        } else if (printMatchSetOnly) {
+                            remainingLine = printMatchSetOnly[1].trim();
+                            setCode = printMatchSetOnly[2].trim();
+                            collectorNumber = null; // Explicitly null
+                            console.log(`Parsed Set Only: [${setCode}] from "${line}"`);
+                        } else {
+                             // No set/number info in parentheses found
+                             remainingLine = line.trim(); // Use the original line for further parsing
                         }
 
-                        // Check for quantity: [num] [name] or [name] [x][num]
-                        const quantityMatch = inputLine.match(/^(?:(\d+)\s*x?\s*(.+?)|(.+?)\s*x?(\d+))$/i);
+
+                        // B. Check for quantity: [num] [name] or [name] [x][num] on the remaining string
+                        const quantityMatch = remainingLine.match(/^(?:(\d+)\s*x?\s*(.+?)|(.+?)\s*x?(\d+))\s*$/i);
                         if (quantityMatch) {
                             quantity = parseInt(quantityMatch[1] || quantityMatch[4], 10);
                             cardName = (quantityMatch[2] || quantityMatch[3]).trim();
                         } else {
-                            cardName = inputLine.trim(); // Use the (potentially modified) name if no quantity found
+                            cardName = remainingLine.trim(); // Use the remaining string as the name if no quantity
                         }
 
                         if (isNaN(quantity) || quantity < 1) quantity = 1;
 
-                        // Add fetch promise
-                        cardFetchPromises.push(
-                            fetchCardImage(cardName, setCode, collectorNumber)
-                                .then(result => {
-                                    let uris;
-                                    let fallbackNote = null;
-                                    // Check if result is an object with uris and fallbackNote
-                                    if (typeof result === 'object' && result !== null && Array.isArray(result.uris)) {
-                                        uris = result.uris;
-                                        fallbackNote = result.fallbackNote;
-                                    } else if (Array.isArray(result)) {
-                                        uris = result; // It's just an array of URIs
-                                    } else {
-                                        throw new Error("Invalid result format from fetchCardImage");
-                                    }
+                        // C. Handle "Random" keyword (overrides parsed name)
+                        if (cardName.toLowerCase() === 'random') {
+                             isRandom = true;
+                             cardName = 'Random'; // Standardize
+                             setCode = null; // Random cannot have set/number
+                             collectorNumber = null;
+                        }
 
-                                    if (fallbackNote) {
-                                        warnings.push(fallbackNote);
-                                    }
-                                    return uris.map(url => ({ url, quantity, originalInput: line }));
-                                })
-                                .catch(error => {
-                                    errors.push(`Error for "${line}": ${error.message}`);
-                                    return []; // Return empty array on error for this line
-                                })
-                                .finally(() => {
-                                    processedLines++;
-                                    if (progressBarRef.current && progressPercentageRef.current) {
-                                        const percentage = Math.round((processedLines / totalLines) * 100);
-                                        progressBarRef.current.style.width = `${percentage}%`;
-                                        progressPercentageRef.current.textContent = `${percentage}%`;
-                                    }
-                                })
-                        );
+                        console.log(`Processing Line: "${line}" -> Name: "${cardName}", Qty: ${quantity}, Set: ${setCode}, Num: ${collectorNumber}, Random: ${isRandom}`);
+
+
+                         // D. Add fetch promise
+                         if (isRandom) {
+                              // Handle random card fetching directly
+                              cardFetchPromises.push(
+                                 (async () => {
+                                     try {
+                                         const randomUrl = 'https://api.scryfall.com/cards/random';
+                                         const data = await safeFetchJson(randomUrl, 'Random Card');
+                                         const uris = getImageUris(data);
+                                         if (uris.length === 0) throw new Error("Random card found but has no image URI.");
+                                         return uris.map(url => ({ url, quantity, originalInput: line }));
+                                     } catch (error) {
+                                         addStatusMessage('error', `Failed to fetch random card for line "${line}": ${error.message}`);
+                                         return [];
+                                     } finally {
+                                        processedLineCount++;
+                                        // Update progress (moved inside specific promise resolution)
+                                        if (progressBarRef.current && progressPercentageRef.current) {
+                                            const percentage = Math.round((processedLineCount / totalLines) * 100);
+                                            progressBarRef.current.style.width = `${percentage}%`;
+                                            progressPercentageRef.current.textContent = `${percentage}%`;
+                                        }
+                                     }
+                                 })()
+                             );
+
+                         } else if (cardName) { // Only fetch if a card name exists
+                             cardFetchPromises.push(
+                                fetchCardImage(cardName, setCode, collectorNumber, line)
+                                    .then(result => {
+                                        if (result.fallbackNote) {
+                                            addStatusMessage('warning', `For "${line}": ${result.fallbackNote}`);
+                                        }
+                                        return result.uris.map(url => ({ url, quantity, originalInput: line }));
+                                    })
+                                    .catch(error => {
+                                        addStatusMessage('error', `Error for "${line}": ${error.message}`);
+                                        return []; // Return empty array on error
+                                    })
+                                     .finally(() => {
+                                        processedLineCount++;
+                                        // Update progress (moved inside specific promise resolution)
+                                        if (progressBarRef.current && progressPercentageRef.current) {
+                                            const percentage = Math.round((processedLineCount / totalLines) * 100);
+                                            progressBarRef.current.style.width = `${percentage}%`;
+                                            progressPercentageRef.current.textContent = `${percentage}%`;
+                                        }
+                                    })
+                             );
+                         } else {
+                             // Handle cases where parsing resulted in no card name (should be rare)
+                            addStatusMessage('warning', `Could not parse a card name from line: "${line}"`);
+                            processedLineCount++; // Still count it as processed
+                             if (progressBarRef.current && progressPercentageRef.current) {
+                                const percentage = Math.round((processedLineCount / totalLines) * 100);
+                                progressBarRef.current.style.width = `${percentage}%`;
+                                progressPercentageRef.current.textContent = `${percentage}%`;
+                            }
+                         }
+
                     } // End parsing loop
 
                     // 2. Await all fetches and collect results
                     const results = await Promise.all(cardFetchPromises);
-                    const cardData = results.flat(); // Flatten the array of arrays
+                    const cardData = results.flat(); // Flatten the array of arrays [{url, quantity, originalInput}, ...]
 
-                    if (cardData.length === 0 && errors.length > 0) {
-                         setGenerationError(`No card images could be fetched.\n${errors.join('\n')}`);
-                         setIsGenerating(false);
-                         return;
-                    }
-                    if (cardData.length === 0 && errors.length === 0) {
-                         setGenerationError("No valid card inputs found or processed.");
-                         setIsGenerating(false);
-                         return;
+                    // Check if any cards were successfully fetched before proceeding
+                    if (cardData.length === 0) {
+                        addStatusMessage('error', `No card images could be successfully fetched or added.${statusMessages.some(m => m.type === 'error') ? ' See errors above.' : ''}`);
+                        setIsGenerating(false);
+                        return;
                     }
 
-
-                    // Set notification
-                    setPdfBuildNotification(true);
+                    // Set PDF building notification
+                    setPdfBuildNotificationVisible(true);
+                    // Brief delay to allow UI update before heavy PDF work
+                    await new Promise(resolve => setTimeout(resolve, 100));
 
                     // 3. Load jsPDF and initialize document
                     const jsPDF = await loadJsPDF();
                     const doc = new jsPDF({ orientation: 'portrait', unit: 'in', format: 'letter' });
 
                     // --- PDF Layout Constants ---
+                    // ... (Layout constants - unchanged) ...
                     const mmToIn = (mm) => mm / 25.4;
                     const cardWidthIn = 2.5;
                     const cardHeightIn = 3.5;
@@ -542,13 +664,14 @@
 
                     if (requiredWidth > pageW || requiredHeight > pageH) {
                         console.warn("Calculated layout might exceed page size. Consider smaller margins/gaps or fewer cards per page.");
-                        errors.push("Warning: Card layout might slightly exceed page boundaries.");
+                        addStatusMessage('warning', "Card layout might slightly exceed page boundaries due to minimal margins/gaps.");
                     }
 
                     let currentX = marginIn;
                     let currentY = marginIn;
                     let cardsOnCurrentPage = 0;
                     let totalCardsAddedToPdf = 0;
+                    let imageAddErrors = 0;
 
                     // 4. Add Images to PDF
                     for (const card of cardData) {
@@ -560,17 +683,22 @@
                                 cardsOnCurrentPage = 0;
                             }
 
-                            try {
-                                const imageResponse = await fetch(card.url); // Fetch image data
-                                if (!imageResponse.ok) throw new Error(`HTTP ${imageResponse.status} fetching image`);
+                             try {
+                                // Fetch image data as Blob
+                                const imageResponse = await fetch(card.url);
+                                if (!imageResponse.ok) throw new Error(`HTTP ${imageResponse.status} fetching image data`);
                                 const imageBlob = await imageResponse.blob();
+
+                                // Convert Blob to Data URL
                                 const imageDataUrl = await new Promise((resolve, reject) => {
                                     const reader = new FileReader();
                                     reader.onloadend = () => resolve(reader.result);
-                                    reader.onerror = reject;
+                                    reader.onerror = (err) => reject(new Error("FileReader error: " + err));
                                     reader.readAsDataURL(imageBlob);
                                 });
-                                const imageType = imageBlob.type.split('/')[1]?.toUpperCase() || (card.url.toUpperCase().includes('PNG') ? 'PNG' : 'JPEG'); // Determine type
+
+                                // Determine image type (more robustly)
+                                const imageType = imageBlob.type.split('/')[1]?.toUpperCase() || (card.url.toUpperCase().includes('PNG') ? 'PNG' : 'JPEG');
 
                                 doc.addImage(imageDataUrl, imageType, currentX, currentY, cardWidthIn, cardHeightIn);
                                 cardsOnCurrentPage++;
@@ -583,37 +711,34 @@
                                     currentY += cardHeightIn + gapIn;
                                 }
                              } catch (error) {
+                                imageAddErrors++;
                                 console.error(`Error adding image ${card.url} (from input "${card.originalInput}") to PDF:`, error);
-                                errors.push(`Error adding image for ${card.originalInput}: ${error.message}`);
+                                addStatusMessage('error', `Error adding image for "${card.originalInput}" to PDF: ${error.message}`);
+                                // Skip this card instance, but continue trying others
                             }
-                        }
-                    }
+                        } // end quantity loop
+                    } // end cardData loop
 
                     // 5. Finalize and Save
-                    let finalMessage = "";
-                    if(warnings.length > 0){
-                        finalMessage += `Notes:\n${warnings.join('\n')}\n\n`;
-                    }
-                     if (errors.length > 0) {
-                         finalMessage += `PDF generated with ${totalCardsAddedToPdf} cards, but encountered issues:\n${errors.join('\n')}`;
-                         setGenerationError(finalMessage); // Set as error if issues occurred
-                    } else if (warnings.length > 0) {
-                        setGenerationError(finalMessage); // Show warnings even if no fatal errors
-                    }
-
+                    setPdfBuildNotificationVisible(false); // Hide build notification
 
                     if (totalCardsAddedToPdf > 0) {
                         doc.save('mtg-proxies.pdf');
-                    } else if (errors.length === 0 && warnings.length === 0) { // Only show this if no other messages
-                        setGenerationError("No cards were ultimately added to the PDF. Please check your input list and potential errors above.");
+                        addStatusMessage('success', `Successfully generated PDF with ${totalCardsAddedToPdf} card images.`);
+                        if(imageAddErrors > 0) {
+                             addStatusMessage('warning', `${imageAddErrors} image(s) failed to be added to the PDF. See errors above.`);
+                        }
+                    } else {
+                         addStatusMessage('error', `No cards were ultimately added to the PDF.${statusMessages.some(m => m.type === 'error' || m.type === 'warning') ? ' Check messages above.' : ''}`);
                     }
 
                 } catch (error) {
                     console.error("Fatal PDF Generation Error:", error);
-                    setGenerationError(`Fatal Error: ${error.message || "An unexpected error occurred during PDF generation."}`);
+                    // Add as a new error message, preserving others
+                     addStatusMessage('error', `Fatal Error during PDF generation: ${error.message}`);
                 } finally {
                     setIsGenerating(false);
-                    setPdfBuildNotification(false);
+                    setPdfBuildNotificationVisible(false); // Ensure it's hidden on any exit
                 }
             }; // End handleGenerate
 
@@ -628,38 +753,56 @@
 
                         <textarea
                             className="w-full max-w-md custom-textarea mb-4 resize-none"
-                            placeholder="Enter card names, one per line...
+                            placeholder={
+`Enter card names, one per line...
 Examples:
 4 Sol Ring
 Island x8
 Ragavan, Nimble Pilferer
-Black Lotus (Vintage Campionship, 2017NA)"
+Black Lotus (LEA, 232)  <-- Set Code, Number
+2 Forest (UST)          <-- Set Code Only
+Random x5               <-- Random Card`
+                            }
                             ref={textAreaRef}
                             disabled={isGenerating}
                             rows="8"
                         />
 
-                        <div className="w-full max-w-md flex items-center mb-4 px-1">
-                            <div className="progress-container flex-grow h-3 mr-2">
-                                <div
-                                    className="progress-bar"
-                                    style={{ width: '0%' }}
-                                    ref={progressBarRef}
-                                />
+                        {/* Progress Bar & Status Area */}
+                        <div className="w-full max-w-md mb-4">
+                            <div className="flex items-center px-1">
+                                <div className="progress-container flex-grow h-3 mr-2">
+                                    <div
+                                        className="progress-bar"
+                                        style={{ width: '0%' }}
+                                        ref={progressBarRef}
+                                    />
+                                </div>
+                                <span className="text-secondary text-sm font-medium" ref={progressPercentageRef}>
+                                    0%
+                                </span>
                             </div>
-                            <span className="text-secondary text-sm font-medium" ref={progressPercentageRef}>
-                                0%
-                            </span>
-                        </div>
+                         </div>
 
-                         {pdfBuildNotification && (
-                            <div className="success-message">
-                                Building the PDF, this might take a while for many cards...
-                            </div>
-                        )}
+                         {/* Status Messages Area */}
+                        <div className="status-message-container w-full max-w-md mb-6">
+                             {pdfBuildNotificationVisible && (
+                                <div className="status-message success">
+                                    <strong>Building PDF...</strong>
+                                    This might take a moment, especially for many high-resolution images.
+                                </div>
+                            )}
+                            {statusMessages.map((msg, index) => (
+                                <div key={index} className={`status-message ${msg.type}`}>
+                                    <strong>{msg.type.charAt(0).toUpperCase() + msg.type.slice(1)}:</strong>
+                                    {msg.message}
+                                </div>
+                            ))}
+                        </div>
 
                         <hr className="w-full max-w-md separator mb-6" />
 
+                        {/* Button and Info Section */}
                         <div className="w-full max-w-md flex items-center justify-center mb-6">
                             <button
                                 className="custom-button mr-2"
@@ -675,7 +818,7 @@ Black Lotus (Vintage Campionship, 2017NA)"
                                 onMouseLeave={handleInfoMouseLeave}
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 info-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoinm="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 {showInfoDiv && (
                                     <div className="absolute tooltip z-10" style={{ top: '100%', right: 0 }}>
@@ -686,7 +829,14 @@ Black Lotus (Vintage Campionship, 2017NA)"
                                         </p>
                                          <p className="font-semibold text-primary mb-1">Specify Print:</p>
                                         <p className="mb-2">
-                                            Add Set name and Collector Number in parentheses: `Card Name (SET, NUM)`. you can find these in each card's page on <a href="https://scryfall.com">Scryfall</a>
+                                            Add the <strong className="text-accent">Set Code</strong> (e.g., LEA, MH2, SLD) and optionally the <strong className="text-accent">Collector Number</strong> in parentheses at the end of the line.
+                                        </p>
+                                        <ul className="list-disc list-inside mb-2">
+                                            <li>`Card Name (SET, NUM)` - Specific print</li>
+                                            <li>`Card Name (SET)` - Any print from that set</li>
+                                        </ul>
+                                         <p className="mb-2">
+                                            If a specific print isn't found or lacks an image, the generator will try to fall back to a default print of the card.
                                         </p>
                                         <p className="font-semibold text-primary mb-1">Examples:</p>
                                         <ul className="list-disc list-inside">
@@ -694,7 +844,6 @@ Black Lotus (Vintage Campionship, 2017NA)"
                                             <li>4 Sol Ring</li>
                                             <li>Mountain x8</li>
                                             <li>Island 6</li>
-                                            <li>Ragavan // Nimble Pilferer</li>
                                             <li>Black Lotus (Vintage Campionship, 2017NA)</li>
                                             <li>Random x5</li>
                                         </ul>
@@ -702,15 +851,6 @@ Black Lotus (Vintage Campionship, 2017NA)"
                                 )}
                             </div>
                         </div>
-
-                         {generationError && (
-                            <div className="error-message"> {/* Use class for consistent styling */}
-                                {/* Check if the message contains "Error:" or "Notes:" prefix already */}
-                                {!(generationError.startsWith("Error:") || generationError.startsWith("Notes:")) && <strong>Error:</strong>}
-                                <br/>
-                                {generationError}
-                            </div>
-                        )}
                     </div>
                 </div>
             );
